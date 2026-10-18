@@ -63,6 +63,8 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
           return send(res, 403, { error: 'Yêu cầu không hợp lệ.' });
         }
         if (!req.headers['content-type']?.startsWith('application/sdp')) return send(res, 415, { error: 'Định dạng kết nối không hợp lệ.' });
+        const pair = req.headers['x-language-pair'] ?? 'vi-zh';
+        if (!['vi-zh', 'vi-en'].includes(pair)) return send(res, 400, { error: 'Chọn chế độ Việt – Trung hoặc Việt – Anh.' });
         const now = Date.now();
         attempts = attempts.filter(t => now - t < 60000);
         hourlyAttempts = hourlyAttempts.filter(t => now - t < 3600000);
@@ -79,7 +81,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
         }
         if (!body.startsWith('v=0') || !body.includes('m=audio')) return send(res, 400, { error: 'Kết nối âm thanh không hợp lệ.' });
         const form = new FormData();
-        form.set('sdp', body); form.set('session', JSON.stringify(sessionConfig(env)));
+        form.set('sdp', body); form.set('session', JSON.stringify(sessionConfig(env, pair)));
         const upstream = await fetchImpl('https://api.openai.com/v1/realtime/calls', {
           method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(20000),
         });

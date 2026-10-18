@@ -1,4 +1,9 @@
-# Song Ngữ — phiên dịch Trung ↔ Việt
+# Song Ngữ — phiên dịch Việt ↔ Trung và Việt ↔ Anh
+
+Chọn một trong hai chế độ trước khi bật micro: **Việt ↔ Trung** (mặc định) hoặc **Việt ↔ Anh**.
+Dừng phiên trước khi đổi chế độ; lần bắt đầu tiếp theo tạo kết nối mới với cấu hình ngôn ngữ tương ứng.
+Ứng dụng tự chọn chiều dịch trong cặp đã chọn và giữ thời gian chốt câu 2 giây im lặng.
+Trong chế độ Việt ↔ Anh, nhãn hiển thị cặp ngôn ngữ thay vì đoán tiếng nói dựa trên dấu tiếng Việt.
 
 Website phiên dịch giọng nói cho hai người nói luân phiên trên một thiết bị.
 Nhận diện Mandarin hoặc tiếng Việt khi đang nói; chốt lượt sau khoảng 2 giây im lặng;

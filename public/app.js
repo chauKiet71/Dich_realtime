@@ -7,6 +7,21 @@ let phase = 'idle', epoch = 0, peer, channel, stream, context, analyser, sampleB
 let currentTurn, pendingTurn, responseTurn, turns = [], responseTurns = new Map(), inputTurns = new Map();
 let audioStarted = false, lastClear = 0, sessionStarted = 0;
 const audio = $('remote-audio');
+const pairs = {
+  'vi-zh': { label: 'VIỆT ⇄ TRUNG', spoken: 'tiếng Việt hoặc tiếng Trung phổ thông', symbol: '中', code: 'ZH' },
+  'vi-en': { label: 'VIỆT ⇄ ANH', spoken: 'tiếng Việt hoặc tiếng Anh', symbol: 'En', code: 'EN' },
+};
+const selectedPair = () => pairs[$('language-pair').value];
+function refreshPair() {
+  const pair = selectedPair();
+  document.title = `Song Ngữ · ${pair.label}`;
+  $('intro-description').textContent = `Nói ${pair.spoken}. Ngừng khoảng 2 giây, bản dịch sẽ được đọc thành tiếng.`;
+  $('pair-symbol').textContent = pair.symbol;
+  $('pair-code').textContent = pair.code;
+  $('pair-illustration').setAttribute('aria-label', pair.label);
+  $('source-language').textContent = 'TỰ ĐỘNG';
+  $('target-language').textContent = pair.label;
+}
 const notices = {
   NotAllowedError: 'Chưa được cấp quyền micro. Cho phép micro trong trình duyệt rồi thử lại.',
   NotFoundError: 'Không tìm thấy micro. Hãy kết nối micro và thử lại.',
@@ -25,6 +40,7 @@ function setPhase(value) {
   $('connection').classList.toggle('online', active);
   $('connection').replaceChildren(Object.assign(document.createElement('i'), {}), document.createTextNode(active ? ' Đã kết nối' : value === 'connecting' ? ' Đang kết nối' : ' Chưa kết nối'));
   $('clear').disabled = active || value === 'connecting';
+  $('language-pair').disabled = value !== 'idle';
   $('wave').classList.toggle('active', value === 'playing');
 }
 function clearTimer() { clearTimeout(watchdog); watchdog = undefined; }
@@ -55,13 +71,13 @@ function resumeListening() {
   gate.reset(); lastClear = performance.now();
   send({ type: 'input_audio_buffer.clear' });
   mic(true); setPhase('listening');
-  status('Đang lắng nghe', 'Nói tiếng Trung hoặc tiếng Việt');
+  status('Đang lắng nghe', `Nói ${selectedPair().spoken}`);
   $('source-hint').textContent = 'Bản chép lời xuất hiện khi bạn nói';
   $('target-hint').textContent = 'Tự động phát giọng nói AI';
   renderHistory();
 }
 function newTurn() {
-  const turn = { index: turns.length + 1, source: '', translation: '', complete: false };
+  const turn = { index: turns.length + 1, pair: selectedPair().label, source: '', translation: '', complete: false };
   turns.push(turn);
   if (turns.length > 100) turns.shift();
   return turn;
@@ -77,7 +93,7 @@ function renderHistory() {
   const fragment = document.createDocumentFragment();
   for (const turn of [...entries].reverse()) {
     const row = document.createElement('div'); row.className = 'history-item';
-    const number = document.createElement('small'); number.textContent = String(turn.index).padStart(2, '0');
+    const number = document.createElement('small'); number.textContent = String(turn.index).padStart(2, '0'); number.title = turn.pair;
     const source = document.createElement('div'); source.textContent = turn.source || 'Đang nhận diện…';
     const translated = document.createElement('div'); translated.className = 'translation';
     translated.textContent = turn.translation || (turn.interrupted ? 'Lượt dịch đã dừng.' : 'Đang dịch…');
@@ -86,6 +102,13 @@ function renderHistory() {
   $('history-list').replaceChildren(fragment);
 }
 function updateLabels(text) {
+  // Streaming transcription does not provide a detected-language field.
+  // English and Vietnamese share Latin script: do not guess from missing accents.
+  if ($('language-pair').value === 'vi-en') {
+    $('source-language').textContent = 'TỰ ĐỘNG';
+    $('target-language').textContent = selectedPair().label;
+    return;
+  }
   // Visual hint only; the audio model determines the translation language.
   const chinese = /\p{Script=Han}/u.test(text);
   $('source-language').textContent = chinese ? '中文 · ZH' : 'TIẾNG VIỆT · VI';
@@ -207,7 +230,7 @@ async function start() {
     channel.onopen = () => { if (run === epoch) { sessionStarted = performance.now(); resumeListening(); timer = setInterval(tick, 40); } };
     const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
     if (run !== epoch) return;
-    const answer = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/sdp', 'X-Translation-Client': '1' }, body: offer.sdp, signal: aborter.signal });
+    const answer = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/sdp', 'X-Translation-Client': '1', 'X-Language-Pair': $('language-pair').value }, body: offer.sdp, signal: aborter.signal });
     if (run !== epoch) return;
     if (!answer.ok) { const error = await answer.json(); throw new Error(error.error || 'Không tạo được kết nối.'); }
     await pc.setRemoteDescription({ type: 'answer', sdp: await answer.text() });
@@ -222,8 +245,16 @@ $('clear').addEventListener('click', () => {
   if (phase !== 'idle') return;
   turns = []; responseTurns.clear(); inputTurns.clear(); sourceStore = new TranscriptStore();
   $('source-text').textContent = 'Sẵn sàng cho câu chuyện mới.'; $('target-text').textContent = 'Bản dịch sẽ xuất hiện ở đây.';
-  $('source-language').textContent = 'TỰ ĐỘNG'; $('target-language').textContent = 'TRUNG ⇄ VIỆT'; renderHistory();
+  refreshPair(); renderHistory();
 });
+$('language-pair').addEventListener('change', () => {
+  if (phase !== 'idle') return;
+  refreshPair();
+  $('source-text').textContent = 'Sẵn sàng cho câu chuyện mới.';
+  $('target-text').textContent = 'Bản dịch sẽ xuất hiện ở đây.';
+  status('Sẵn sàng lắng nghe', `Nói ${selectedPair().spoken}`);
+});
+refreshPair();
 $('settings-button').addEventListener('click', () => { const open = $('settings').hidden; $('settings').hidden = !open; $('settings-button').setAttribute('aria-expanded', String(open)); });
 $('sensitivity').addEventListener('input', e => { gate.threshold = Number(e.target.value) / 1000; $('sensitivity-value').textContent = e.target.value; });
 window.addEventListener('pagehide', stop);
