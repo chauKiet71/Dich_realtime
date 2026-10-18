@@ -80,3 +80,20 @@ Chưa triển khai công khai, chưa có tài khoản người dùng/quota produ
 WebRTC thực tế đã chạy nhưng không thu thập coverage trình duyệt.
 Sẵn sàng dùng thử cục bộ; cần thử trên thiết bị thật và bổ sung kiểm soát production
 trước khi công khai.
+
+## Triển khai Railway — 19/10/2026
+
+- TDD bổ sung: 3 test Railway thất bại trước khi sửa (healthcheck, HTTPS/auth,
+  fail-closed); sau khi sửa **18/18 tests đạt**, coverage module 96,63% dòng.
+- `npm run check` và `git diff --check` đạt.
+- HTTPS online: `/healthz` trả 200; `/` không xác thực trả 401; `/` có xác thực
+  trả 200; `/api/health` có xác thực trả `configured: true`.
+- Thử WebRTC thật từ trang Railway qua trình duyệt: câu
+  `你好。请问从这里到机场需要多长时间？` được nhận diện, dịch thành
+  `Chào bạn, cho mình hỏi từ đây đến sân bay mất bao lâu?`, có cả sự kiện bắt đầu
+  và kết thúc phát audio, không có lỗi API. Đã dừng phiên sau thử nghiệm.
+- Mật khẩu truy cập riêng và OpenAI key đặt trong Railway Variables; bí mật
+  truyền bằng stdin CLI, không nằm trong source hoặc image Docker.
+- Readiness và restart policy được ghi trực tiếp vào service Railway.
+- Giới hạn 6 phiên/phút và 60 phiên/giờ ở một instance, không phải quota chi phí
+  cứng của OpenAI; bộ đếm reset khi tiến trình khởi động lại.

@@ -71,14 +71,14 @@ Máy chủ chỉ lắng nghe `127.0.0.1`; giao diện dùng trên máy này. Có
 Origin, giới hạn dung lượng SDP, tốc độ tạo phiên, CSP và danh sách tài nguyên tĩnh
 cho phép. API key không được phục vụ qua HTTP.
 
-Chưa triển khai công khai. Trước khi đưa lên Internet cần HTTPS, đăng nhập,
-quota theo người dùng và quản lý chi phí ở máy chủ; không mở endpoint tạo phiên
-có phí cho khách không xác thực. Key hiện ở tệp cục bộ sẽ không tự có trên hosting.
+Bản local chỉ phục vụ trên máy này. Bản Railway có HTTPS, đăng nhập và giới hạn
+tạo phiên phía máy chủ như phần bên dưới. Tệp key cục bộ không tự có trên hosting.
 
 ## Triển khai Railway
 
-Phiên bản Railway dùng `Dockerfile` (Node 24, user không phải root),
-`railway.json` và readiness endpoint `/healthz`. Trong production, máy chủ nghe
+Phiên bản Railway dùng `Dockerfile` (Node 24, user không phải root) và readiness
+endpoint `/healthz`, cấu hình trực tiếp trong service Railway (timeout 120s,
+restart tối đa 3 lần). Không phụ thuộc `railway.json` đã deprecated. Trong production, máy chủ nghe
 `0.0.0.0:$PORT` và chỉ chấp nhận tên miền được cấu hình bằng `PUBLIC_ORIGIN`.
 Các quy định localhost ở trên vẫn áp dụng cho bản chạy local; bản Railway dùng
 HTTPS và đăng nhập HTTP Basic của trình duyệt cho cả giao diện lẫn API.
