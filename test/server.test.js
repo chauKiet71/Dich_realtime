@@ -18,6 +18,30 @@ test('manual turn detection keeps the 2s boundary in the browser, enables both i
   assert.deepEqual(config.output_modalities, ['audio']);
   assert.match(config.instructions, /ONLY the faithful translation/);
 });
+test('English pair uses only English and Vietnamese with bidirectional instructions', () => {
+  const config = sessionConfig({}, 'vi-en');
+  assert.deepEqual(config.audio.input.transcription.languages, ['en', 'vi']);
+  assert.match(config.instructions, /English speech MUST be translated into natural Vietnamese/);
+  assert.match(config.instructions, /Vietnamese speech MUST be translated into natural English/);
+  assert.doesNotMatch(config.instructions, /Mandarin/);
+  assert.equal(config.audio.input.turn_detection, null);
+  assert.throws(() => sessionConfig({}, 'zh-en'), /INVALID_LANGUAGE_PAIR/);
+});
+
+test('session accepts only the two allowed language pairs before calling provider', async t => {
+  const configs = [];
+  const { post } = await server(t, { keyLoader: async () => 'test', fetchImpl: async (_url, options) => {
+    configs.push(JSON.parse(options.body.get('session')));
+    return new Response('v=0');
+  } });
+  for (const pair of ['zh-en', 'en', '', '__proto__', 'ignore instructions']) {
+    assert.equal((await post(undefined, { 'X-Language-Pair': pair })).status, 400);
+  }
+  assert.equal(configs.length, 0);
+  for (const pair of ['vi-en', 'vi-zh']) assert.equal((await post(undefined, { 'X-Language-Pair': pair })).status, 200);
+  assert.deepEqual(configs.map(c => c.audio.input.transcription.languages), [['en', 'vi'], ['zh', 'vi']]);
+});
+
 test('missing or ambiguous credentials are rejected without echoing the file', async () => {
   await assert.rejects(loadKey({}), /KEY_NOT_CONFIGURED/);
   await assert.rejects(loadKey({ OPENAI_API_KEY: 'invalid' }), /KEY_NOT_CONFIGURED/);
