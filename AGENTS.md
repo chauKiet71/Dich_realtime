@@ -9,7 +9,7 @@
 - Use `tdd-workflow` for substantive business logic and regression fixes, and `verification-loop` before reporting an implementation complete. Keep checks proportional to the change.
 - Use `security-review` when implementing authentication, external input handling, or secret-bearing integrations.
 - Commands: `npm start` (local server), `npm run dev` (watch), `npm test` (Node unit/integration tests), `npm run test:coverage`, `npm run check` (JavaScript syntax). This buildless app has no build or TypeScript step.
-- API keys stay server-side. The ignored `.env.local` selects an external key file via `OPENAI_API_KEY_FILE`; never print or copy its contents. Do not publish the loopback-only MVP without adding authentication and server-enforced quotas.
+- API keys stay server-side. The ignored `.env.local` selects an external key file via `OPENAI_API_KEY_FILE`; never print its contents. Railway uses its `OPENAI_API_KEY` variable. Production requires HTTPS `PUBLIC_ORIGIN` and `APP_ACCESS_PASSWORD` (HTTP Basic username `songngu`), with server-enforced session creation quotas. Never upload `.env*` or `artifacts/`.
 - Use PowerShell-compatible commands on Windows.
 
 <!-- CODEGRAPH_START -->

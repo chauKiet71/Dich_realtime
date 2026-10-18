@@ -75,6 +75,41 @@ Chưa triển khai công khai. Trước khi đưa lên Internet cần HTTPS, đ�
 quota theo người dùng và quản lý chi phí ở máy chủ; không mở endpoint tạo phiên
 có phí cho khách không xác thực. Key hiện ở tệp cục bộ sẽ không tự có trên hosting.
 
+## Triển khai Railway
+
+Phiên bản Railway dùng `Dockerfile` (Node 24, user không phải root),
+`railway.json` và readiness endpoint `/healthz`. Trong production, máy chủ nghe
+`0.0.0.0:$PORT` và chỉ chấp nhận tên miền được cấu hình bằng `PUBLIC_ORIGIN`.
+Các quy định localhost ở trên vẫn áp dụng cho bản chạy local; bản Railway dùng
+HTTPS và đăng nhập HTTP Basic của trình duyệt cho cả giao diện lẫn API.
+
+- Website: https://dichrealtime-production.up.railway.app
+- Username: `songngu`.
+- Mật khẩu tạo riêng được lưu cục bộ trong `artifacts/railway-access.txt` (bị loại
+  khỏi Git và gói triển khai). Không dùng API key làm mật khẩu đăng nhập.
+- Biến Railway: `OPENAI_API_KEY`, `APP_ACCESS_PASSWORD`, `PUBLIC_ORIGIN`,
+  `NODE_ENV=production`, `PORT=8080` và hai biến model như `.env.example`.
+- API key được chuyển vào Railway Variables qua stdin của CLI; tệp key trên máy
+  người dùng và `.env.local` không được tải lên.
+- Giới hạn phía máy chủ: tối đa 6 lần tạo phiên/phút và 60 lần/giờ cho dịch vụ.
+  Bộ đếm trong RAM của một instance, reset khi khởi động lại. Đây không phải
+  giới hạn chi tiêu cứng; chủ key nên đặt ngân sách trên OpenAI. Không tăng replica
+  trước khi chuyển bộ đếm sang kho dùng chung.
+- Không cấu hình đủ origin HTTPS/mật khẩu/key thì readiness không đạt, Railway
+  không chuyển sang bản mới.
+
+CLI đã liên kết đúng project/service/environment. Triển khai lại source local:
+
+```powershell
+npm test
+npm run check
+npx --yes @railway/cli up --service 54f63013-fb7c-457d-b979-c5c72d6bb2a5 --environment f1ae971e-2a89-4487-a25b-09f37f3910e7 --project 7ab7c02b-210b-4af4-95e0-c49ed6406e85 --detach
+```
+
+Dịch vụ vẫn liên kết GitHub. Bản CLI chứa thay đổi local; trước khi dùng lại tự
+động triển khai từ GitHub cần đồng bộ các thay đổi này lên repository để không
+ghi đè bản Railway bằng code cũ.
+
 ## Tài liệu API đã đối chiếu
 
 - https://developers.openai.com/api/docs/guides/voice-webrtc?voice-api=realtime

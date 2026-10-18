@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { loadKey, sessionConfig } from './lib/session.js';
 
 const assets = new Map([
@@ -25,11 +26,32 @@ function send(res, status, body, type = 'application/json') {
 
 export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = () => loadKey(env) } = {}) {
   let attempts = [];
+  let hourlyAttempts = [];
+  const production = env.NODE_ENV === 'production';
+  const publicOrigin = env.PUBLIC_ORIGIN || (env.RAILWAY_PUBLIC_DOMAIN ? `https://${env.RAILWAY_PUBLIC_DOMAIN}` : '');
+  const configuredOrigin = publicOrigin ? new URL(publicOrigin) : null;
+  const accessPassword = env.APP_ACCESS_PASSWORD;
+  const hash = value => createHash('sha256').update(value).digest();
   return http.createServer(async (req, res) => {
     try {
-      // Loopback-only MVP. Host allowlist also prevents DNS rebinding.
+      // Railway readiness probes use an internal Host header, without user credentials.
+      if (req.method === 'GET' && req.url === '/healthz') {
+        let ready = !production || Boolean(accessPassword && configuredOrigin?.protocol === 'https:');
+        try { await keyLoader(); } catch { ready = false; }
+        return send(res, ready ? 200 : 503, { ready });
+      }
       const host = req.headers.host || '';
-      if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return send(res, 403, { error: 'Máy chủ chỉ cho phép truy cập trên máy này.' });
+      const localHost = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+      if (production && (!accessPassword || configuredOrigin?.protocol !== 'https:')) return send(res, 503, { error: 'Dịch vụ chưa cấu hình xong.' });
+      if (production ? host !== configuredOrigin.host : !localHost) return send(res, 403, { error: 'Tên miền truy cập không hợp lệ.' });
+      if (accessPassword) {
+        const authorization = req.headers.authorization || '';
+        const credentials = authorization.startsWith('Basic ') ? Buffer.from(authorization.slice(6), 'base64').toString('utf8') : '';
+        if (!timingSafeEqual(hash(credentials), hash(`songngu:${accessPassword}`))) {
+          res.setHeader('WWW-Authenticate', 'Basic realm="Song Ngu", charset="UTF-8"');
+          return send(res, 401, { error: 'Nhập tài khoản và mật khẩu truy cập website.' });
+        }
+      }
       const path = new URL(req.url, `http://${host}`).pathname;
       if (req.method === 'GET' && path === '/api/health') {
         let configured = false;
@@ -37,14 +59,17 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
         return send(res, 200, { configured, model: sessionConfig(env).model });
       }
       if (req.method === 'POST' && path === '/api/session') {
-        if (req.headers.origin !== `http://${host}` || req.headers['x-translation-client'] !== '1') {
+        if (req.headers.origin !== (production ? configuredOrigin.origin : `http://${host}`) || req.headers['x-translation-client'] !== '1') {
           return send(res, 403, { error: 'Yêu cầu không hợp lệ.' });
         }
         if (!req.headers['content-type']?.startsWith('application/sdp')) return send(res, 415, { error: 'Định dạng kết nối không hợp lệ.' });
         const now = Date.now();
         attempts = attempts.filter(t => now - t < 60000);
+        hourlyAttempts = hourlyAttempts.filter(t => now - t < 3600000);
+        if (hourlyAttempts.length >= 60) return send(res, 429, { error: 'Đã đạt giới hạn 60 phiên mỗi giờ. Vui lòng thử lại sau.' });
         if (attempts.length >= 6) return send(res, 429, { error: 'Bạn đã kết nối nhiều lần. Hãy thử lại sau một phút.' });
         attempts.push(now);
+        hourlyAttempts.push(now);
         let key;
         try { key = await keyLoader(); } catch { return send(res, 503, { error: 'Chưa đọc được API key. Kiểm tra cấu hình máy chủ.' }); }
         let body = '';
@@ -79,5 +104,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 3000);
-  createApp().listen(port, '127.0.0.1', () => console.log(`Song Ngữ đang chạy: http://localhost:${port}`));
+  const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
+  const server = createApp().listen(port, host, () => console.log(`Song Ngữ đang chạy trên cổng ${port}`));
+  process.on('SIGTERM', () => { server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 10000).unref(); });
 }
