@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { loadKey, sessionConfig } from './lib/session.js';
 import { RoomHub } from './lib/rooms.js';
 
@@ -25,8 +25,8 @@ const headers = {
   'Permissions-Policy': 'microphone=(self), camera=()',
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
 };
-function send(res, status, body, type = 'application/json') {
-  res.writeHead(status, { ...headers, 'Content-Type': type });
+function send(res, status, body, type = 'application/json', extraHeaders = {}) {
+  res.writeHead(status, { ...headers, 'Content-Type': type, ...extraHeaders });
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
@@ -38,6 +38,19 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
   const configuredOrigin = publicOrigin ? new URL(publicOrigin) : null;
   const accessPassword = env.APP_ACCESS_PASSWORD;
   const hash = value => createHash('sha256').update(value).digest();
+  const cookieKey = randomBytes(32);
+  const clock = now || Date.now;
+  const sign = value => createHmac('sha256', cookieKey).update(value).digest('hex');
+  function roomCookie() {
+    const payload = `${clock() + 15 * 60000}.${randomBytes(16).toString('hex')}`;
+    return `songngu_room_access=${payload}.${sign(payload)}; HttpOnly; SameSite=Strict; Path=/api/room/socket; Max-Age=900${production ? '; Secure' : ''}`;
+  }
+  function validRoomCookie(req) {
+    const value = (req.headers.cookie || '').split(';').map(part => part.trim()).find(part => part.startsWith('songngu_room_access='))?.slice('songngu_room_access='.length);
+    if (!value || !/^\d{13}\.[a-f0-9]{32}\.[a-f0-9]{64}$/.test(value)) return false;
+    const [expires, nonce, signature] = value.split('.');
+    return Number(expires) > clock() && timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(sign(`${expires}.${nonce}`), 'hex'));
+  }
   function reserveSessions(count = 1) {
     const time = Date.now();
     attempts = attempts.filter(t => time - t < 60000);
@@ -77,6 +90,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
         catch { return send(res, 400, { error: 'Dữ liệu không hợp lệ.' }); }
         try {
           const result = path === '/api/rooms' ? rooms.create(input.language) : rooms.join(input.roomId, input.invite);
+          if (accessPassword) res.setHeader('Set-Cookie', roomCookie());
           return send(res, path === '/api/rooms' ? 201 : 200, result);
         } catch (e) { return send(res, e.status || 400, { error: e.status ? e.message : 'Yêu cầu không hợp lệ.' }); }
       }
@@ -115,7 +129,10 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
       }
       if (req.method === 'GET' && assets.has(path)) {
         const [file, type] = assets.get(path);
-        return send(res, 200, await readFile(new URL(file, publicDir)), type);
+        const socketOrigin = production ? `wss://${configuredOrigin.host}` : `ws://${host}`;
+        return send(res, 200, await readFile(new URL(file, publicDir)), type, {
+          'Content-Security-Policy': headers['Content-Security-Policy'].replace("connect-src 'self'", `connect-src 'self' ${socketOrigin}`),
+        });
       }
       return send(res, 404, { error: 'Không tìm thấy.' });
     } catch {
@@ -129,7 +146,10 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
     const validHost = production ? configuredOrigin?.protocol === 'https:' && accessPassword && host === configuredOrigin.host : /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
     const auth = req.headers.authorization || '';
     const credentials = auth.startsWith('Basic ') ? Buffer.from(auth.slice(6), 'base64').toString('utf8') : '';
-    if (req.url !== '/api/room/socket' || !validHost || req.headers.origin !== origin || (accessPassword && !timingSafeEqual(hash(credentials), hash(`songngu:${accessPassword}`)))) {
+    // Browsers may omit cached HTTP Basic credentials on WebSocket upgrades.
+    // A short-lived, signed HttpOnly cookie comes only from authenticated room admission.
+    const authenticated = !accessPassword || timingSafeEqual(hash(credentials), hash(`songngu:${accessPassword}`)) || validRoomCookie(req);
+    if (req.url !== '/api/room/socket' || !validHost || req.headers.origin !== origin || !authenticated) {
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return;
     }
     rooms.upgrade(req, socket, head);
