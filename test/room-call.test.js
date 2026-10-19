@@ -137,6 +137,23 @@ test('room configs pin translation direction and PCM format without changing loc
   assert.deepEqual(zh.audio.input.transcription.languages, ['zh']);
 });
 
+test('waiting for first speech survives 8s, 35s and 2min; audio limits start with first audio', () => {
+  let now = 1000;
+  const hub = new RoomHub({ env: {}, keyLoader: async () => 'test', reserveSessions: () => true, now: () => now });
+  try {
+    const credentials = hub.create('vi'); hub.join(credentials.roomId, credentials.invite);
+    const room = hub.rooms.get(credentials.roomId), member = room.members[0];
+    member.upstream = new FakeProvider(); room.phase = 'ready'; hub.speak(room, member);
+    now += 180000; hub.sweep();
+    assert.ok(hub.rooms.has(room.id), 'silent waiting must not expire the speaking turn');
+    assert.equal(room.phase, 'listening');
+    hub.audio(room, member, Buffer.alloc(4800));
+    assert.equal(room.turn.started, now);
+    assert.equal(room.deadline, now + 35000);
+    now += 35001; hub.sweep(); assert.equal(hub.rooms.has(room.id), false);
+  } finally { hub.close(); }
+});
+
 test('authenticated room admission issues a secure cookie for WebSocket browsers that omit Basic auth', async t => {
   let now = Date.now();
   const f = await fixture(t, { now: () => now, env: { NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://example.com', APP_ACCESS_PASSWORD: 'test-password' } });

@@ -116,8 +116,11 @@ try {
     await sender.evaluate(() => { window.micGain.gain.value = 1; window.syntheticGain.gain.value = 0; });
   }
   const beforeIdle = await a.evaluate(() => window.audioStarts);
-  await a.waitForFunction(() => document.querySelector('#status').textContent.includes('Sẵn sàng'), { timeout: 12000 });
-  assert.equal(await a.evaluate(() => window.liveTracks.every(t => !t.enabled)), true);
+  const inputBytes = providers[0].bytes;
+  await a.waitForTimeout(9500);
+  assert.match(await a.locator('#status').textContent(), /Đang nghe/);
+  assert.equal(await a.evaluate(() => window.liveTracks.every(t => t.enabled)), true);
+  assert.equal(providers[0].bytes, inputBytes, 'silent waiting does not stream unbounded audio to provider');
   assert.equal(await a.evaluate(() => window.audioStarts), beforeIdle, 'no cue or translation for an unanswered automatic turn');
   assert.match(await b.locator('#translation').textContent(), /测试翻译/);
   await b.locator('#leave').click();
