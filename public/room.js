@@ -7,12 +7,12 @@ const invited = invite.has('room') && invite.has('invite');
 if (location.hash) history.replaceState(null, '', location.pathname);
 $('join-form').hidden = !invited; $('create-form').hidden = invited;
 let audio, socket, member, phase = 'idle', speaker, turnId, generation = 0, clock, pendingEnd;
-let started = 0, speech = false, sentBytes = 0, gate = new SilenceGate(), busy = false;
+let started = 0, speech = false, sentBytes = 0, gate = new SilenceGate(), busy = false, flushing = false;
 const entries = new Map();
 function notice(text = '') { $('notice').textContent = text; $('notice').hidden = !text; }
 function send(msg) { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg)); }
 function finish(message = '') {
-  generation++; clearInterval(clock); phase = 'idle'; pendingEnd = null;
+  generation++; clearInterval(clock); phase = 'idle'; pendingEnd = null; flushing = false;
   audio?.close(); audio = null;
   if (socket) { socket.onmessage = socket.onclose = socket.onerror = null; socket.close(); socket = null; }
   member = null; busy = false; $('call').hidden = true; $('setup').hidden = false;
@@ -41,11 +41,17 @@ function frame(buffer) {
   if (level >= gate.threshold) speech = true;
   if (gate.sample(level, performance.now())) commit();
 }
-function commit() {
-  if (phase !== 'listening' || speaker !== member?.memberId) return;
-  audio.capture(false); phase = 'committing'; renderState();
-  send({ type: speech ? 'commit' : 'cancel' });
-  if (!speech) notice('Chưa nghe thấy giọng nói. Bấm nói và thử lại. / 未检测到语音。');
+async function commit() {
+  if (flushing || phase !== 'listening' || speaker !== member?.memberId) return;
+  flushing = true; $('speak').disabled = true;
+  const run = generation;
+  try {
+    // Port messages are ordered: send the final partial PCM frame before commit.
+    await audio.flush(); if (run !== generation) return;
+    phase = 'committing'; flushing = false; renderState();
+    send({ type: speech ? 'commit' : 'cancel' });
+    if (!speech) notice('Chưa nghe thấy giọng nói. Bấm nói và thử lại. / 未检测到语音。');
+  } catch (e) { if (run === generation) finish(e.message); }
 }
 function transcript(event) {
   let entry = entries.get(event.turnId);
@@ -131,4 +137,4 @@ $('copy').addEventListener('click', async () => {
   catch { $('invite-link').select(); notice('Chọn và sao chép liên kết trong ô mời.'); }
 });
 window.addEventListener('pagehide', () => finish());
-document.addEventListener('visibilitychange', () => { if (document.hidden && (member || busy)) { send({ type: 'leave' }); finish('Đã đóng phòng khi rời trang. Hãy giữ trang mở trong cuộc gọi.'); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && phase !== 'waiting' && (member || busy)) { send({ type: 'leave' }); finish('Đã đóng phòng khi rời trang. Hãy giữ trang mở trong cuộc gọi.'); } });

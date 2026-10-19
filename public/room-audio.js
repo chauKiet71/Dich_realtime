@@ -11,7 +11,10 @@ export class RoomAudio {
     await this.context.audioWorklet.addModule('/pcm-worklet.js');
     if (this.closed) return;
     this.node = new AudioWorkletNode(this.context, 'pcm-capture');
-    this.node.port.onmessage = e => { if (!this.closed) this.onFrame(e.data); };
+    this.node.port.onmessage = e => {
+      if (e.data === 'flushed') { this.flushDone?.(); return; }
+      if (!this.closed) this.onFrame(e.data);
+    };
     this.input = this.context.createMediaStreamSource(stream);
     this.input.connect(this.node); this.node.connect(this.context.destination);
   }
@@ -20,6 +23,14 @@ export class RoomAudio {
     this.node?.port.postMessage(enabled);
   }
   async resume() { await this.context.resume(); }
+  async flush() {
+    this.stream?.getAudioTracks().forEach(t => { t.enabled = false; });
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => { this.flushDone = null; reject(new Error('Không chốt được âm thanh. Hãy tham gia lại.')); }, 1500);
+      this.flushDone = () => { clearTimeout(timeout); this.flushDone = null; resolve(); };
+      this.node.port.postMessage('flush');
+    });
+  }
   play(pcm) {
     if (this.closed || !pcm.byteLength || pcm.byteLength % 2) return;
     const samples = new DataView(pcm);
@@ -35,6 +46,7 @@ export class RoomAudio {
   }
   drained() { return this.context?.state === 'running' && this.sources.size === 0 && this.context.currentTime >= this.next; }
   close() {
+    this.flushDone?.();
     this.closed = true; this.capture(false);
     this.stream?.getTracks().forEach(t => { t.onended = null; t.stop(); });
     for (const source of this.sources) { source.onended = null; source.stop(); source.disconnect(); }
