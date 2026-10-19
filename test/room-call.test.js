@@ -49,6 +49,20 @@ test('hybrid HTTP validates origin and returns pipeline audio without exposing c
   assert.equal((await response.json()).audio,Buffer.alloc(480).toString('base64'));
   assert.equal((await fetch(base+'/api/translate-audio',{method:'POST',headers:{...headers,Origin:'https://evil.example'},body:Buffer.alloc(9600)})).status,403);
   assert.equal(calls,1);
+  for (const [changes,body,code] of [[{'Content-Type':'text/plain'},Buffer.alloc(9600),415],[{'X-Language-Pair':'xx'},Buffer.alloc(9600),400],[{},Buffer.alloc(1),400],[{},Buffer.alloc(1440002),413]]) {
+    const invalid=await fetch(base+'/api/translate-audio',{method:'POST',headers:{...headers,...changes},body});
+    assert.equal(invalid.status,code);
+  }
+  assert.equal(calls,1);
+});
+test('leaving a hybrid room aborts the in-flight provider chain', async t => {
+  let signal;
+  const pipeline={credentials:async()=>({}),translate:({signal:s})=>{signal=s;return new Promise((resolve,reject)=>s.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}));}};
+  const {wa,wb}=await pair(t,{env:{TRANSLATION_ENGINE:'hybrid'},pipeline});
+  command(wa,'speak');await waitFor(()=>wa.messages.at(-1)?.phase==='listening');
+  wa.send(Buffer.alloc(9600));command(wa,'commit');await waitFor(()=>signal);
+  command(wb,'leave');await waitFor(()=>signal.aborted);
+  assert.equal(wa.messages.filter(m=>m.type==='audio').length,0);
 });
 test('hybrid room uses shared pipeline and waits for listener playback', async t => {
   const calls=[];

@@ -57,3 +57,30 @@ test('WAV codec validates format and removes headers', () => {
   const wav = pcmToWav(pcm); wav.writeUInt32LE(48000,24);
   assert.throws(() => wavToPcm(wav));
 });
+test('missing keys and unsafe router URLs fail readiness', async () => {
+  for (const config of [{}, {...env,ROUTER_BASE_URL:'http://example.com/v1'}, {...env,ROUTER_BASE_URL:'https://user:pass@example.com/v1'}]) {
+    const {pipeline}=fixture('vi','zh',{env:config});
+    await assert.rejects(pipeline.credentials());
+  }
+});
+test('pipeline enforces concurrency and hourly quotas before provider calls', async () => {
+  const {pipeline,calls}=fixture();
+  pipeline.active=4;
+  await assert.rejects(pipeline.translate({pcm,pair:'vi-zh'}),e=>e.status===429);
+  pipeline.active=0; pipeline.attempts=Array(600).fill(Date.now());
+  await assert.rejects(pipeline.translate({pcm,pair:'vi-zh'}),e=>e.status===429);
+  assert.equal(calls.length,0);
+});
+test('truncated Gemini responses and empty transcripts never reach TTS', async () => {
+  for (const mode of ['empty','length','oversize']) {
+    let count=0;
+    const {pipeline}=fixture('vi','zh',{fetchImpl:async url=>{
+      count++;
+      if (url.includes('transcriptions')) return json({text:mode==='empty'?'':mode==='oversize'?'x'.repeat(70000):'Xin chào'});
+      return json({choices:[{finish_reason:'length',message:{content:'{}'}}]});
+    }});
+    await assert.rejects(pipeline.translate({pcm,pair:'vi-zh'}));
+    assert.ok(count<=2);
+    assert.equal(pipeline.active,0);
+  }
+});

@@ -1,13 +1,46 @@
 # Song Ngữ — phiên dịch Việt ↔ Trung và Việt ↔ Anh
 
+## Luồng Gemini Flash + Google WaveNet (hybrid)
+
+Đặt `TRANSLATION_ENGINE=hybrid` rồi khởi động lại server. Local đã cấu hình
+đường dẫn key; key không được chép vào mã nguồn hoặc gửi xuống trình duyệt.
+
+- Nhận dạng: OpenAI `gpt-4o-mini-transcribe` (`OPENAI_STT_MODEL`).
+- Chuẩn hóa nhẹ và dịch **trong cùng một lần gọi**: `gemini/gemini-3-flash-preview`
+  qua 9Router (`ROUTER_TRANSLATE_MODEL`, `ROUTER_BASE_URL`). Giữ tên riêng, số,
+  phủ định, ý nghĩa và tự sửa của người nói; không bổ sung thông tin.
+- Đọc: Google `vi-VN-Wavenet-A`, `cmn-CN-Wavenet-A`, `en-US-Wavenet-D`.
+- Một thiết bị: Việt ↔ Trung / Việt ↔ Anh. Phòng hai thiết bị: Việt ↔ Trung.
+- Chốt câu sau **700 ms im lặng**, tối đa 30 giây/câu. Bản chép lời xuất hiện
+  sau bước nhận dạng, không còn cập nhật tăng dần trong chế độ hybrid.
+- Toàn bộ audio đi qua backend đến OpenAI; văn bản gốc gửi đến 9Router và
+  nhà cung cấp model phía sau; bản dịch gửi Google để đọc. Ứng dụng không ghi
+  audio/nội dung xuống đĩa. Chính sách lưu dữ liệu của từng nhà cung cấp áp dụng.
+- Micro chỉ mở lại khi phát xong audio và âm báo hoàn tất. Phòng gọi giữ quyền
+  nói cho đến khi người nghe xác nhận phát xong. Dừng phiên hủy yêu cầu đang chờ.
+- Giới hạn chung: 4 lượt xử lý đồng thời, 30 câu/phút, 600 câu/giờ/instance;
+  bộ đếm RAM, không phải giới hạn chi tiêu cứng. Không retry âm thầm để tránh phí kép.
+
+Local dùng `ROUTER_API_KEY_FILE`, `GOOGLE_TTS_API_KEY_FILE`, `OPENAI_API_KEY_FILE`.
+Production đặt `ROUTER_API_KEY`, `GOOGLE_TTS_API_KEY`, `OPENAI_API_KEY` trong
+Railway Variables cùng các biến engine/model/base URL ở `.env.example` và
+giữ `APP_ACCESS_PASSWORD`, `PUBLIC_ORIGIN`, `NODE_ENV=production` hiện có.
+Không tải file key hay `.env.local` lên hosting. Google key chỉ cấp quyền
+Cloud Text-to-Speech API; không đặt trong biến frontend.
+
+Đặt `TRANSLATION_ENGINE=realtime` để quay về OpenAI Realtime cũ. Các mô tả
+WebRTC và hai upstream OpenAI bên dưới chỉ áp dụng cho chế độ realtime.
+Hybrid không mở các upstream đó; phòng gọi dùng chung chuỗi STT → Gemini → TTS.
+Chưa triển khai thay đổi này lên production. Xem `docs/hybrid-verification.md`.
+
 Chọn một trong hai chế độ trước khi bật micro: **Việt ↔ Trung** (mặc định) hoặc **Việt ↔ Anh**.
 Dừng phiên trước khi đổi chế độ; lần bắt đầu tiếp theo tạo kết nối mới với cấu hình ngôn ngữ tương ứng.
-Ứng dụng tự chọn chiều dịch trong cặp đã chọn và giữ thời gian chốt câu 2 giây im lặng.
+Ứng dụng tự chọn chiều dịch trong cặp đã chọn và giữ thời gian chốt câu 700 ms im lặng.
 Trong chế độ Việt ↔ Anh, nhãn hiển thị cặp ngôn ngữ thay vì đoán tiếng nói dựa trên dấu tiếng Việt.
 
 Website phiên dịch giọng nói cho hai người nói luân phiên trên một thiết bị,
 hoặc **phòng gọi Việt–Trung giữa hai thiết bị** tại `/room`.
-Nhận diện Mandarin hoặc tiếng Việt khi đang nói; chốt lượt sau khoảng 2 giây im lặng.
+Nhận diện Mandarin hoặc tiếng Việt khi đang nói; chốt lượt sau khoảng 700 ms im lặng.
 Âm báo ngắn xác nhận câu đã được nhận; bíp đôi báo bản dịch đã phát xong rồi ứng
 dụng mới mở lại micro.
 
@@ -44,7 +77,7 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
 - **`gpt-live-transcribe`**: bản chép lời tăng dần, giới hạn ngôn ngữ dự kiến là `zh`, `vi`.
 - **WebRTC**: âm thanh truyền trực tiếp giữa trình duyệt và OpenAI. Node.js chỉ
   chuyển tiếp SDP để thiết lập phiên, giữ API key ở máy chủ.
-- **Web Audio**: đo mức âm thanh mỗi 40ms; ngưỡng im lặng 2000ms, bỏ qua tiếng
+- **Web Audio**: đo mức âm thanh mỗi 40ms; ngưỡng im lặng 700ms, bỏ qua tiếng
   động quá ngắn. Có thể điều chỉnh ngưỡng trong giao diện. Đây là bộ dò năng lượng
   đơn giản, chưa phải bộ phân loại giọng nói chuyên dụng cho phòng nhiều tiếng ồn.
 - Micro tắt trong lúc chờ dịch và phát bản dịch; không cho người thứ hai nói chen
@@ -60,7 +93,7 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
 2. Chọn ngôn ngữ mình nói: Việt hoặc Trung, bấm **Tạo phòng gọi**, cấp quyền micro.
 3. Sao chép liên kết mời cho người kia. Họ mở liên kết và bấm **Tham gia**;
    hệ thống tự chọn ngôn ngữ đối ứng. Mật khẩu website vẫn áp dụng cho cả hai.
-4. Khi báo **Sẵn sàng**, bấm **Đến lượt tôi nói**. Ngừng khoảng 2 giây để dịch,
+4. Khi báo **Sẵn sàng**, bấm **Đến lượt tôi nói**. Ngừng khoảng 700 ms để dịch,
    hoặc bấm **Dịch câu này**. Người kia nghe bản dịch bằng ngôn ngữ của họ.
    Sau khi tắt micro, máy người nói phát audio xác nhận do người dùng cung cấp
    (kể cả khi bấm chốt thủ công). Yêu cầu dịch được gửi ngay, không chờ âm báo
@@ -70,7 +103,7 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
    Nếu trình duyệt chặn phát âm thanh, bấm **Bật âm thanh**; micro vẫn tắt đến khi
    phát xong và bíp đôi hoàn tất. Micro tiếp tục mở khi chưa có giọng nói, không
    có mốc chờ 8 giây.
-   Sau khi nói rồi im lặng 2 giây, ứng dụng chốt câu và dịch. Im lặng trước câu
+   Sau khi nói rồi im lặng 700 ms, ứng dụng chốt câu và dịch. Im lặng trước câu
    không được gửi đến OpenAI; chỉ giữ 300 ms đệm cục bộ để tránh mất đầu từ.
 
 Phòng hỗ trợ hai người, không phải hội thoại nói chồng hay truyền giọng gốc.
@@ -122,7 +155,7 @@ node --env-file-if-exists=.env.local scripts/room-provider-smoke.mjs --confirm-p
 Hai file mẫu không nằm trong Git; cần WAV mono PCM16 24 kHz, dưới 25 giây.
 Xem `docs/rooms-verification.md` để biết kết quả thực tế và giới hạn kiểm chứng.
 
-Khoảng 2 giây là thời gian chờ im lặng, không phải cam kết tổng độ trễ. Mạng,
+Khoảng 700 ms là thời gian chờ im lặng, không phải cam kết tổng độ trễ. Mạng,
 model, độ dài câu và tiếng ồn ảnh hưởng kết quả. Trong phép thử ngày 19/10/2026
 bằng hai đoạn âm thanh tổng hợp, bản chép lời bắt đầu sau khoảng 1,5 giây và
 âm thanh dịch bắt đầu 0,55–0,74 giây sau sự kiện commit. Đây là số đo mẫu,
