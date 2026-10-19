@@ -31,7 +31,7 @@ Cloud Text-to-Speech API; không đặt trong biến frontend.
 Đặt `TRANSLATION_ENGINE=realtime` để quay về OpenAI Realtime cũ. Các mô tả
 WebRTC và hai upstream OpenAI bên dưới chỉ áp dụng cho chế độ realtime.
 Hybrid không mở các upstream đó; phòng gọi dùng chung chuỗi STT → Gemini → TTS.
-Chưa triển khai thay đổi này lên production. Xem `docs/hybrid-verification.md`.
+Đã triển khai hybrid lên Railway ngày 19/10/2026. Xem `docs/hybrid-verification.md`.
 
 Chọn một trong hai chế độ trước khi bật micro: **Việt ↔ Trung** (mặc định) hoặc **Việt ↔ Anh**.
 Dừng phiên trước khi đổi chế độ; lần bắt đầu tiếp theo tạo kết nối mới với cấu hình ngôn ngữ tương ứng.

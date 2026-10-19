@@ -64,7 +64,33 @@ still apply; UI discloses OpenAI, 9Router and Google processing.
 
 Local configured preview runs at http://localhost:3002 (health: hybrid/configured).
 Existing 3000/3001 processes were not stopped. Restart `npm start` to load the
-updated `.env.local` on its normal port. Railway has not been changed.
+updated `.env.local` on its normal port.
+
+## Railway deployment
+
+Deployed on 2026-10-19 after explicit user authorization:
+`03f01ff4-b078-4fc2-97cc-19eda0ee795c`, status **SUCCESS**.
+URL: https://dichrealtime-production.up.railway.app
+Source checkpoint: `fb86ac3` uploaded with Railway CLI; GitHub was not pushed.
+Previous successful deployment: `c76b88b6-3860-4630-8bcb-806dcdf8d0a0`.
+
+Added server-side ROUTER_API_KEY and GOOGLE_TTS_API_KEY using stdin; no key
+values in logs/source. Enabled TRANSLATION_ENGINE=hybrid, OPENAI_STT_MODEL,
+ROUTER_BASE_URL, ROUTER_TRANSLATE_MODEL. Existing authentication and OpenAI
+key preserved. `.railwayignore` excludes `.env*` and artifacts; Docker image
+copies only package files, server.js, lib and public.
+
+Preflight: npm run check and npm test (66/66) passed. Postdeploy healthz 200,
+unauthenticated api/health 401, authenticated health hybrid/configured=true;
+home, room and new client assets 200. Real production smoke passed vi→zh
+(5638ms), zh→vi (5834ms), en→vi (3740ms), vi→en (3838ms), with PCM audio.
+The initial en→vi request returned 502; a manual repeat succeeded. The failed
+stage was not captured, so its root cause is unconfirmed. No automatic retry
+or fallback was added, and this is not a reliability guarantee.
+
+Rollback option: change TRANSLATION_ENGINE to realtime and redeploy. All old
+Realtime configuration is retained. Production physical-microphone testing
+remains manual; smoke used synthetic sentences.
 
 Remaining manual validation: physical mic/room noise, perceived voice quality,
 real two-device network conditions, Safari/iOS autoplay. Room transport and
