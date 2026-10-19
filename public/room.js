@@ -28,7 +28,7 @@ function renderState() {
   $('status-dot').classList.toggle('active', phase === 'ready' || phase === 'listening');
   const labels = { waiting: 'Đang chờ người kia / 等待对方', connecting: 'Đang mở phiên dịch / 正在连接', ready: 'Sẵn sàng / 已准备好', listening: mine ? 'Đang nghe bạn nói / 正在聆听' : 'Người kia đang nói / 对方正在说话', translating: 'Đang dịch / 正在翻译', playing: 'Đang phát bản dịch / 正在播放', committing: 'Đang gửi câu nói…' };
   $('status').textContent = labels[phase] || 'Đang kết nối…';
-  $('detail').textContent = phase === 'listening' && mine ? 'Dừng 2 giây để dịch · 最长30秒' : 'Micro đang tắt · 麦克风已关闭';
+  $('detail').textContent = phase === 'listening' && mine ? 'Micro đang mở · Nói để trả lời, dừng 2 giây để dịch · 请回答' : 'Micro đang tắt · Phát xong bản dịch sẽ tự chuyển lượt';
   if (!['waiting', 'connecting'].includes(phase)) $('invite-panel').hidden = true;
 }
 function frame(buffer) {

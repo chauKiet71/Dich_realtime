@@ -78,7 +78,7 @@ try {
   await a.screenshot({ path: 'artifacts/room-mobile.png', fullPage: true });
   for (const [sender, listener, index] of [[a, b, 0], [b, a, 1]]) {
     if (index === 0) await listener.evaluate(() => { window.blockPlayback = true; });
-    await sender.locator('#speak').click();
+    if (index === 0) await sender.locator('#speak').click();
     await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Đang nghe'));
     await sender.waitForTimeout(800);
     assert.equal(await listener.locator('#speak').isDisabled(), true);
@@ -90,21 +90,22 @@ try {
       assert.equal(await sender.locator('#speak').isDisabled(), true);
       await listener.locator('#resume').click();
     }
-    await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Sẵn sàng'));
+    await listener.waitForFunction(() => document.querySelector('#status').textContent.includes('Đang nghe'));
+    assert.equal(await listener.evaluate(() => window.liveTracks.every(t => t.enabled)), true);
     assert.ok(providers[index].bytes >= 9600);
     assert.equal(await sender.evaluate(() => window.liveTracks.every(t => !t.enabled)), true);
   }
   assert.equal(await a.evaluate(() => window.audioStarts), 1);
   assert.equal(await b.evaluate(() => window.audioStarts), 1);
   for (const [sender, listener] of [[a, b], [b, a]]) {
+    if (listener === a) await listener.evaluate(() => { window.micGain.gain.value = 0; });
     await sender.evaluate(() => { window.syntheticGain.gain.value = 0.1; });
     const beforeSender = await sender.evaluate(() => window.audioStarts);
     const beforeListener = await listener.evaluate(() => window.audioStarts);
-    await sender.locator('#speak').click();
     await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Đang nghe'));
     await sender.waitForTimeout(800);
     const silenceAt = await sender.evaluate(() => { window.micGain.gain.value = 0; return performance.now(); });
-    await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Sẵn sàng'));
+    await listener.waitForFunction(() => document.querySelector('#status').textContent.includes('Đang nghe'));
     assert.equal(await sender.evaluate(() => window.audioStarts), beforeSender + 1, 'auto-stop cue plays once on speaker');
     assert.equal(await listener.evaluate(() => window.audioStarts), beforeListener + 1, 'listener hears only translation');
     const evidence = await sender.evaluate(() => ({ cue: window.playEvents.at(-1), commit: window.commitTimes.at(-1) }));
@@ -114,6 +115,10 @@ try {
     assert.ok(Math.abs(evidence.commit - evidence.cue.at) < 200, 'commit does not wait for the cue to finish');
     await sender.evaluate(() => { window.micGain.gain.value = 1; window.syntheticGain.gain.value = 0; });
   }
+  const beforeIdle = await a.evaluate(() => window.audioStarts);
+  await a.waitForFunction(() => document.querySelector('#status').textContent.includes('Sẵn sàng'), { timeout: 12000 });
+  assert.equal(await a.evaluate(() => window.liveTracks.every(t => !t.enabled)), true);
+  assert.equal(await a.evaluate(() => window.audioStarts), beforeIdle, 'no cue or translation for an unanswered automatic turn');
   assert.match(await b.locator('#translation').textContent(), /测试翻译/);
   await b.locator('#leave').click();
   await a.locator('#setup').waitFor({ state: 'visible' });

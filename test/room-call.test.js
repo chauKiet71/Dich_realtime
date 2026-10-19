@@ -50,9 +50,10 @@ test('two-way audio only reaches the listener; turn stays locked until actual pl
   const { wa, wb, providers, a, b } = await pair(t);
   for (const [sender, listener, provider, who] of [[wa, wb, providers[0], a], [wb, wa, providers[1], b]]) {
     if (sender === wa) command(sender, 'speak');
-    await waitFor(() => sender.messages.at(-1)?.phase === 'listening');
-    const turnId = sender.messages.at(-1).turnId;
-    assert.equal(sender.messages.at(-1).speaker, who.memberId);
+    await waitFor(() => sender.messages.filter(m => m.type === 'state').at(-1)?.phase === 'listening');
+    const state = sender.messages.filter(m => m.type === 'state').at(-1);
+    const turnId = state.turnId;
+    assert.equal(state.speaker, who.memberId);
     command(listener, 'speak');
     await waitFor(() => listener.messages.at(-1)?.type === 'error');
     listener.send(Buffer.alloc(4800));

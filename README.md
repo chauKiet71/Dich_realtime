@@ -64,8 +64,11 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
    Khi tự chốt vì im lặng, máy người nói phát âm báo từ video đã cung cấp (khoảng
    1,14 giây), sau khi tắt micro. Yêu cầu dịch gửi ngay, không chờ âm báo kết thúc.
    Chốt thủ công hoặc hết giới hạn thời gian không phát âm báo này.
-5. Chờ bản dịch phát xong rồi người kia bấm nói để trả lời. Nếu trình duyệt chặn
-   phát âm thanh, bấm **Bật âm thanh**; lượt nói vẫn bị khóa cho đến khi phát xong.
+5. Sau khi nghe hết bản dịch, micro người nghe **tự mở để trả lời**. Không cần
+   bấm nói ở mỗi lượt; máy chủ chuyển quyền nói sau xác nhận phát xong từ người nghe.
+   Nếu trình duyệt chặn phát âm thanh, bấm **Bật âm thanh**; micro vẫn tắt đến khi
+   phát xong. Nếu chưa nói trong khoảng 8 giây, micro tắt và phòng về trạng thái chờ;
+   bấm nói để tiếp tục. Im lặng không tự tạo chuỗi lượt dịch.
 
 Phòng hỗ trợ hai người, không phải hội thoại nói chồng hay truyền giọng gốc.
 Hai bên đều thấy văn bản gốc và bản dịch; mỗi bên chỉ nghe giọng AI dịch lời người kia.

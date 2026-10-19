@@ -51,7 +51,8 @@ try {
   const wa = await connect(a), wb = await connect(b);
   await waitFor(() => clients.every(c => c.events.at(-1)?.phase === 'ready'));
   for (const [index, sender, listener] of [[0, wa, wb], [1, wb, wa]]) {
-    sender.send(JSON.stringify({ type: 'speak' })); await waitFor(() => sender.events.at(-1)?.phase === 'listening');
+    if (index === 0) sender.send(JSON.stringify({ type: 'speak' }));
+    await waitFor(() => sender.events.at(-1)?.phase === 'listening');
     const turnId = sender.events.at(-1).turnId;
     for (let offset = 0; offset < samples[index].length; offset += 4800) {
       sender.send(samples[index].subarray(offset, offset + 4800)); await new Promise(r => setTimeout(r, 100));
@@ -62,7 +63,7 @@ try {
     assert.ok(listener.bytes > 0); assert.ok(translated?.text);
     assert.match(translated.text, index === 0 ? /\p{Script=Han}/u : /[a-zA-ZÀ-ỹ]/u);
     console.log(JSON.stringify({ direction: index === 0 ? 'vi-to-zh' : 'zh-to-vi', firstAudioMs: listener.firstAudioAt - committedAt, audioBytes: listener.bytes, translation: translated.text }));
-    listener.send(JSON.stringify({ type: 'played', turnId })); await waitFor(() => sender.events.at(-1)?.phase === 'ready');
+    listener.send(JSON.stringify({ type: 'played', turnId })); await waitFor(() => listener.events.at(-1)?.phase === 'listening');
   }
   console.log('PASS: real OpenAI provider, two synthetic utterances, both translation directions. Not a physical-device or playback-latency benchmark.');
 } finally { for (const ws of clients) ws.terminate(); await new Promise(r => { app.closeAllConnections(); app.close(r); }); }
