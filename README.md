@@ -7,8 +7,9 @@ Trong chế độ Việt ↔ Anh, nhãn hiển thị cặp ngôn ngữ thay vì 
 
 Website phiên dịch giọng nói cho hai người nói luân phiên trên một thiết bị,
 hoặc **phòng gọi Việt–Trung giữa hai thiết bị** tại `/room`.
-Nhận diện Mandarin hoặc tiếng Việt khi đang nói; chốt lượt sau khoảng 2 giây im lặng;
-phát giọng nói bản dịch và mở lại micro khi phát xong.
+Nhận diện Mandarin hoặc tiếng Việt khi đang nói; chốt lượt sau khoảng 2 giây im lặng.
+Âm báo ngắn xác nhận câu đã được nhận; bíp đôi báo bản dịch đã phát xong rồi ứng
+dụng mới mở lại micro.
 
 ## Chạy trên máy này
 
@@ -61,13 +62,13 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
    hệ thống tự chọn ngôn ngữ đối ứng. Mật khẩu website vẫn áp dụng cho cả hai.
 4. Khi báo **Sẵn sàng**, bấm **Đến lượt tôi nói**. Ngừng khoảng 2 giây để dịch,
    hoặc bấm **Dịch câu này**. Người kia nghe bản dịch bằng ngôn ngữ của họ.
-   Khi tự chốt vì im lặng, máy người nói phát âm báo từ video đã cung cấp (khoảng
-   1,14 giây), sau khi tắt micro. Yêu cầu dịch gửi ngay, không chờ âm báo kết thúc.
-   Chốt thủ công hoặc hết giới hạn thời gian không phát âm báo này.
+   Sau khi tắt micro, máy người nói phát âm báo xác nhận (kể cả khi bấm chốt thủ
+   công). Yêu cầu dịch được gửi ngay, không chờ âm báo kết thúc.
 5. Sau khi nghe hết bản dịch, micro người nghe **tự mở để trả lời**. Không cần
    bấm nói ở mỗi lượt; máy chủ chuyển quyền nói sau xác nhận phát xong từ người nghe.
    Nếu trình duyệt chặn phát âm thanh, bấm **Bật âm thanh**; micro vẫn tắt đến khi
-   phát xong. Micro tiếp tục mở khi chưa có giọng nói, không có mốc chờ 8 giây.
+   phát xong và bíp đôi hoàn tất. Micro tiếp tục mở khi chưa có giọng nói, không
+   có mốc chờ 8 giây.
    Sau khi nói rồi im lặng 2 giây, ứng dụng chốt câu và dịch. Im lặng trước câu
    không được gửi đến OpenAI; chỉ giữ 300 ms đệm cục bộ để tránh mất đầu từ.
 

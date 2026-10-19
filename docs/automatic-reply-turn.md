@@ -9,10 +9,9 @@ Không chuyển lượt ở `response.done` hoặc `audio-end`: chúng chỉ bá
 audio, chưa xác nhận loa phát hết. AudioContext bị suspend vẫn giữ micro tắt;
 người dùng bấm bật âm thanh và nghe xong mới được mở micro.
 
-Giữ hành vi chống vòng lặp im lặng: nếu chưa phát hiện tiếng nói trong khoảng
-8 giây, client cancel buffer, tắt micro và phòng về ready. Người dùng bấm nói
-để tiếp tục. Nếu đã nói thì chốt sau 2 giây im lặng, phát âm báo local và dịch.
-Rời phòng hoặc mất kết nối vẫn đóng micro. Không thêm gọi nền.
+Nếu chưa phát hiện tiếng nói, micro tiếp tục mở để người dùng trả lời mà không có
+mốc chờ 8 giây. Sau khi đã nói, client chốt sau 2 giây im lặng, phát âm báo local
+và dịch. Rời phòng hoặc mất kết nối vẫn đóng micro. Không thêm gọi nền.
 
 ## Kiểm chứng
 
@@ -21,8 +20,8 @@ Rời phòng hoặc mất kết nối vẫn đóng micro. Không thêm gọi n�
   listener làm speaker với turnId mới. `played` từ sai người/turnId cũ bị từ chối.
 - Browser smoke protected + bỏ Basic ở upgrade PASS: bốn lượt liên tục sau
   một lần bấm bắt đầu, hai lượt chốt thủ công và hai lượt tự chốt; micro mở cho
-  bên nghe sau playback, chỉ một bên thu; playback suspend giữ khóa; âm báo chỉ
-  phát ở người chốt; lượt tự mở không có tiếng nói tự tắt sau 8 giây, không dịch.
+  bên nghe sau playback, chỉ một bên thu; playback suspend giữ khóa; âm báo
+  phát ở người chốt; lượt tự mở tiếp tục chờ cho tới khi người dùng nói.
 - `npm run test:coverage`: 36/36 PASS; coverage Node 89,35% dòng / 88,15% nhánh /
   79,01% hàm. Frontend được kiểm tra riêng trong browser smoke, không tính vào
   coverage Node. `npm run check` và `git diff --check` PASS.
