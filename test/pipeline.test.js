@@ -113,6 +113,25 @@ test('WAV codec validates format and removes headers', () => {
   const wav = pcmToWav(pcm); wav.writeUInt32LE(48000,24);
   assert.throws(() => wavToPcm(wav));
 });
+test('OpenRouter uses isolated credentials, DeepSeek Flash and non-thinking JSON translation',async()=>{
+  const {pipeline,calls}=fixture('vi','zh',{env:{...env,TRANSLATION_PROVIDER:'openrouter',OPENROUTER_API_KEY:'test-openrouter'}});
+  await pipeline.translate({pcm,pair:'vi-zh'});
+  assert.equal(pipeline.provider,'OpenRouter');
+  assert.equal(calls[1].url,'https://openrouter.ai/api/v1/chat/completions');
+  assert.equal(calls[1].options.headers.Authorization,'Bearer test-openrouter');
+  const body=JSON.parse(calls[1].options.body);
+  assert.equal(body.model,'deepseek/deepseek-v4.1-flash');
+  assert.deepEqual(body.reasoning,{enabled:false});
+  assert.deepEqual(body.response_format,{type:'json_object'});
+});
+test('OpenRouter never falls back to the old 9Router key and labels exhausted quota correctly',async()=>{
+  const missing=fixture('vi','zh',{env:{...env,TRANSLATION_PROVIDER:'openrouter'}});
+  await assert.rejects(missing.pipeline.credentials());
+  const f=throttled([429,429,429]);
+  f.pipeline.env={...env,TRANSLATION_PROVIDER:'openrouter',OPENROUTER_API_KEY:'test-openrouter'};
+  const p=new TranslationPipeline({env:f.pipeline.env,keyLoader:async()=> 'test',sleep:async()=>{},fetchImpl:async url=>url.includes('transcriptions')?json({text:'Xin chào'}):new Response('SECRET',{status:429})});
+  await assert.rejects(p.translate({pcm,pair:'vi-zh'}),e=>e.status===429 && e.message.includes('OpenRouter') && !e.message.includes('Gemini') && !e.message.includes('9Router'));
+});
 test('missing keys and unsafe router URLs fail readiness', async () => {
   for (const config of [{}, {...env,ROUTER_BASE_URL:'http://example.com/v1'}, {...env,ROUTER_BASE_URL:'https://user:pass@example.com/v1'}]) {
     const {pipeline}=fixture('vi','zh',{env:config});
