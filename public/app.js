@@ -225,7 +225,7 @@ async function commitHybrid(run) {
   if (flushing || phase!=='listening') return;
   flushing=true; setPhase('waiting');
   pendingTurn=responseTurn=newTurn(); pendingTurn.committedAt=performance.now();
-  notice(); status('Đang dịch…','Nếu 9Router giới hạn, tự chờ và thử lại tối đa 2 lần');
+  notice(); status('Đang dịch…','Nếu dịch vụ giới hạn, tự chờ và thử lại tối đa 2 lần');
   $('source-text').textContent='Đang nhận dạng câu mới…';
   $('target-text').textContent='Đang chuyển ngữ…';
   watch(95000,'Dịch vụ phản hồi quá lâu. Hãy thử lại.');

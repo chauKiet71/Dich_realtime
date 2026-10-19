@@ -106,7 +106,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
       if (req.method === 'GET' && path === '/api/health') {
         let configured = false;
         try { await checkKeys(); configured = true; } catch { /* No secret in errors. */ }
-        return send(res, 200, { configured, model: hybrid ? pipeline.model : sessionConfig(env).model, engine: hybrid ? 'hybrid' : 'realtime' });
+        return send(res, 200, { configured, model: hybrid ? pipeline.model : sessionConfig(env).model, engine: hybrid ? 'hybrid' : 'realtime', ...(hybrid ? {provider:pipeline.provider} : {}) });
       }
       if (req.method === 'POST' && path === '/api/translate-audio' && hybrid) {
         if (req.headers.origin !== (production ? configuredOrigin.origin : `http://${host}`) || req.headers['x-translation-client'] !== '1') return send(res,403,{error:'Yêu cầu không hợp lệ.'});
