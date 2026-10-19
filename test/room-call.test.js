@@ -49,7 +49,7 @@ async function pair(t, options) {
 test('two-way audio only reaches the listener; turn stays locked until actual playback acknowledgement', async t => {
   const { wa, wb, providers, a, b } = await pair(t);
   for (const [sender, listener, provider, who] of [[wa, wb, providers[0], a], [wb, wa, providers[1], b]]) {
-    command(sender, 'speak');
+    if (sender === wa) command(sender, 'speak');
     await waitFor(() => sender.messages.at(-1)?.phase === 'listening');
     const turnId = sender.messages.at(-1).turnId;
     assert.equal(sender.messages.at(-1).speaker, who.memberId);
@@ -70,7 +70,13 @@ test('two-way audio only reaches the listener; turn stays locked until actual pl
     command(sender, 'played', { turnId });
     await waitFor(() => sender.messages.at(-1)?.type === 'error');
     command(listener, 'played', { turnId });
-    await waitFor(() => sender.messages.at(-1)?.phase === 'ready');
+    await waitFor(() => sender.messages.at(-1)?.phase === 'listening');
+    const next = sender.messages.at(-1);
+    assert.equal(next.speaker, listener === wb ? b.memberId : a.memberId);
+    assert.equal(next.turnId, turnId + 1);
+    command(listener, 'played', { turnId });
+    await waitFor(() => listener.messages.at(-1)?.type === 'error');
+    assert.equal(sender.messages.at(-1).turnId, next.turnId, 'stale playback acknowledgement cannot start another turn');
   }
   command(wa, 'leave'); await waitFor(() => wb.messages.at(-1)?.type === 'ended');
   assert.ok(providers.every(p => p.readyState === 3));
