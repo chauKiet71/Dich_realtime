@@ -230,6 +230,7 @@ async function start() {
     if (run !== epoch) { acquired.getTracks().forEach(t => t.stop()); return; }
     stream = acquired; mic(false);
     context = new AudioContext(); await context.resume(); cues = new AudioCues(context);
+    await cues.loadReadyAudio();
     if (run !== epoch) return;
     analyser = context.createAnalyser(); analyser.fftSize = 2048;
     context.createMediaStreamSource(stream).connect(analyser);
@@ -245,7 +246,16 @@ async function start() {
     channel.onmessage = e => { if (run === epoch) { try { handle(JSON.parse(e.data)); } catch { fail('Không xử lý được dữ liệu âm thanh. Hãy kết nối lại.'); } } };
     channel.onclose = () => { if (run === epoch) fail('Phiên dịch đã đóng. Bấm bắt đầu để mở phiên mới.'); };
     channel.onerror = () => { if (run === epoch) fail('Kết nối dữ liệu bị lỗi. Hãy thử lại.'); };
-    channel.onopen = () => { if (run === epoch) { sessionStarted = performance.now(); resumeListening(); timer = setInterval(tick, 40); } };
+    channel.onopen = () => {
+      if (run !== epoch) return;
+      sessionStarted = performance.now();
+      clearTimer(); mic(false); setPhase('listening');
+      status('Đang lắng nghe', 'Tiếng bíp báo sẵn sàng · Nói sau tiếng bíp');
+      cues.play('connection-ready', () => {
+        if (run !== epoch) return;
+        resumeListening(); timer = setInterval(tick, 40);
+      });
+    };
     const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
     if (run !== epoch) return;
     const answer = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/sdp', 'X-Translation-Client': '1', 'X-Language-Pair': $('language-pair').value }, body: offer.sdp, signal: aborter.signal });

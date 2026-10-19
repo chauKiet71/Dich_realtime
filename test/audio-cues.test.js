@@ -99,6 +99,24 @@ test('connection-ready plays the supplied audio and completes once', () => {
   assert.equal(completed, 1);
 });
 
+test('ready audio loads the existing WAV; failed load retains beep fallback', async t => {
+  const { context, oscillators } = fakeAudioContext();
+  const buffer = { duration: 1.136 };
+  context.decodeAudioData = async () => buffer;
+  const fetchMock = t.mock.method(globalThis, 'fetch', async url => {
+    assert.equal(url, '/turn-end.wav');
+    return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
+  });
+  const cues = new AudioCues(context);
+  await cues.loadReadyAudio();
+  assert.equal(cues.readyBuffer, buffer);
+  fetchMock.mock.mockImplementation(async () => { throw new Error('offline'); });
+  const fallback = new AudioCues(context);
+  await fallback.loadReadyAudio();
+  assert.equal(fallback.play('connection-ready'), true);
+  assert.equal(oscillators.length, 1);
+});
+
 test('stopping connection-ready suppresses microphone release callback', () => {
   const { context } = fakeAudioContext();
   const source = { connect() {}, disconnect() {}, start() {}, stop() {} };
