@@ -45,6 +45,22 @@ test('abort while waiting prevents another paid request',async()=>{
   await assert.rejects(pipeline.translate({pcm,pair:'vi-zh',signal:aborter.signal}));
   assert.equal(calls.length,2);assert.equal(pipeline.active,0);
 });
+test('HTTP-date Retry-After is honored; wait budget stops before retrying early',async()=>{
+  const date='Mon, 19 Oct 2026 12:00:05 GMT';
+  const f=throttled([429,200],date);f.pipeline.now=()=>Date.parse('Mon, 19 Oct 2026 12:00:00 GMT');
+  await f.pipeline.translate({pcm,pair:'vi-zh'});assert.deepEqual(f.waits,[5000]);
+  const g=throttled([429,429,200],'11');
+  await assert.rejects(g.pipeline.translate({pcm,pair:'vi-zh'}),e=>e.status===429);
+  assert.deepEqual(g.waits,[11000]);assert.equal(g.calls.length,3);
+});
+test('real backoff timer cancels immediately on stop',async()=>{
+  const controller=new AbortController();
+  const {pipeline,calls}=throttled([429,200]);
+  // Use production timer rather than the injected instant test sleeper.
+  const {sleep}=new TranslationPipeline({env,keyLoader:async()=> 'test'});pipeline.sleep=sleep;
+  await assert.rejects(pipeline.translate({pcm,pair:'vi-zh',signal:controller.signal,onRetry:()=>{setTimeout(()=>controller.abort(),10);}}));
+  assert.equal(calls.length,2);
+});
 function fixture(sourceLanguage = 'vi', targetLanguage = 'zh', overrides = {}) {
   const calls = [];
   const pipeline = new TranslationPipeline({ env, keyLoader: async () => 'test-openai', fetchImpl: async (url, options) => {

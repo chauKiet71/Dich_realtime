@@ -19,7 +19,13 @@
 - Micro chỉ mở lại khi phát xong audio và âm báo hoàn tất. Phòng gọi giữ quyền
   nói cho đến khi người nghe xác nhận phát xong. Dừng phiên hủy yêu cầu đang chờ.
 - Giới hạn chung: 4 lượt xử lý đồng thời, 30 câu/phút, 600 câu/giờ/instance;
-  bộ đếm RAM, không phải giới hạn chi tiêu cứng. Không retry âm thầm để tránh phí kép.
+  bộ đếm RAM, không phải giới hạn chi tiêu cứng.
+- Khi 9Router trả 429: thử lại tối đa 2 lần (3 yêu cầu dịch tính cả lần đầu),
+  theo `Retry-After`; thiếu header thì chờ 2 rồi 4 giây. Tổng thời gian chờ tối đa
+  20 giây, không thử sớm hơn thời gian dịch vụ yêu cầu. Không gọi lại STT/TTS.
+  Nếu vẫn bị giới hạn, giữ phiên và tắt micro; bấm **Nói lại** sau khi chờ.
+  Phòng gọi trở lại sẵn sàng thay vì đóng phòng. Dừng/rời phiên hủy chờ ngay.
+  Cơ chế này không khắc phục được tài khoản Gemini đã hết quota.
 
 Local dùng `ROUTER_API_KEY_FILE`, `GOOGLE_TTS_API_KEY_FILE`, `OPENAI_API_KEY_FILE`.
 Production đặt `ROUTER_API_KEY`, `GOOGLE_TTS_API_KEY`, `OPENAI_API_KEY` trong
