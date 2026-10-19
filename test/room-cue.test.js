@@ -18,27 +18,26 @@ function audio() {
   };
   room.cueBuffer = {}; return { room, events };
 }
-test('cue starts synchronously and does not affect translated-audio drain acknowledgement', () => {
+test('speech cue starts synchronously and does not affect translated-audio drain acknowledgement', () => {
   const { room, events } = audio();
-  assert.equal(room.playTurnEnd(), undefined);
-  assert.deepEqual(events, ['connect', 'start']);
+  assert.equal(room.playTurnEnd(), true);
+  assert.deepEqual(events, ['tone-start', 'tone-stop']);
   assert.equal(room.sources.size, 0);
   assert.equal(room.drained(), true);
-  room.cueSource.onended(); assert.equal(room.cueSource, null);
 });
 test('reopening microphone or leaving stops any remaining local cue', () => {
   const { room, events } = audio();
   room.playTurnEnd(); room.capture(true);
-  assert.deepEqual(events.slice(-2), ['stop', 'disconnect']);
+  assert.equal(room.cues.groups.size, 0);
   room.playTurnEnd(); room.close();
-  assert.equal(room.cueSource, null); assert.equal(room.cueBuffer, null);
+  assert.equal(room.cues.groups.size, 0);
 });
-test('missing cue, suspended context, or playback failure does not interrupt translation', () => {
+test('suspended context or cue synthesis failure does not interrupt translation', () => {
   const { room, events } = audio();
-  room.cueBuffer = null; room.playTurnEnd(); assert.deepEqual(events, []);
-  room.cueBuffer = {}; room.context.state = 'suspended'; room.playTurnEnd(); assert.deepEqual(events, []);
-  room.context.state = 'running'; room.context.createBufferSource = () => { throw new Error('Audio unavailable'); };
-  assert.doesNotThrow(() => room.playTurnEnd());
+  room.context.state = 'suspended';
+  assert.equal(room.playTurnEnd(), false); assert.deepEqual(events, []);
+  room.context.state = 'running'; room.context.createOscillator = () => { throw new Error('Audio unavailable'); };
+  assert.equal(room.playTurnEnd(), false);
 });
 
 test('translation completion uses the distinct cue and waits for its ending', () => {

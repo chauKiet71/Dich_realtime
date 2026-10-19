@@ -7,12 +7,6 @@ export class RoomAudio {
     this.context = new AudioContext();
     await this.context.resume();
     this.cues = new AudioCues(this.context);
-    // Preload once; a missing cue must never prevent joining or translating.
-    this.cueReady = fetch('/turn-end.wav', { signal: AbortSignal.timeout(5000) })
-      .then(response => { if (!response.ok) throw new Error('Cue unavailable'); return response.arrayBuffer(); })
-      .then(bytes => this.closed ? null : this.context.decodeAudioData(bytes))
-      .then(buffer => { if (!this.closed) this.cueBuffer = buffer; })
-      .catch(() => {});
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     if (this.closed) { stream.getTracks().forEach(t => t.stop()); return; }
     this.stream = stream; this.capture(false);
@@ -28,32 +22,19 @@ export class RoomAudio {
     this.input.connect(this.node); this.node.connect(this.context.destination);
   }
   capture(enabled) {
-    if (enabled) this.stopTurnEnd();
+    if (enabled) this.cues?.stop();
     this.stream?.getAudioTracks().forEach(t => { t.enabled = enabled; });
     this.node?.port.postMessage(enabled);
   }
   async resume() { await this.context.resume(); }
   playTurnEnd() {
-    // Local output only, separate from streamed translation and its playback queue.
-    // Do not defer until loading completes: that could beep during a later turn.
-    if (this.closed || !this.cueBuffer || this.context.state !== 'running') return;
-    try {
-      this.stopTurnEnd();
-      const source = this.cueSource = this.context.createBufferSource();
-      source.buffer = this.cueBuffer; source.connect(this.context.destination);
-      source.onended = () => { source.disconnect(); if (this.cueSource === source) this.cueSource = null; };
-      source.start();
-    } catch { this.stopTurnEnd(); }
+    if (this.closed) return false;
+    this.cues ??= new AudioCues(this.context);
+    return this.cues.play('speech-end');
   }
   playTranslationEnd(onComplete) {
     this.cues ??= new AudioCues(this.context);
     return this.cues.play('translation-end', onComplete);
-  }
-  stopTurnEnd() {
-    if (!this.cueSource) return;
-    this.cueSource.onended = null;
-    try { this.cueSource.stop(); } catch { /* Already ended. */ }
-    this.cueSource.disconnect(); this.cueSource = null;
   }
   async flush() {
     this.stream?.getAudioTracks().forEach(t => { t.enabled = false; });
@@ -78,7 +59,7 @@ export class RoomAudio {
   }
   drained() { return this.context?.state === 'running' && this.sources.size === 0 && this.context.currentTime >= this.next; }
   close() {
-    this.stopTurnEnd(); this.cues?.stop(); this.cueBuffer = null;
+    this.cues?.stop();
     this.flushDone?.();
     this.closed = true; this.capture(false);
     this.stream?.getTracks().forEach(t => { t.onended = null; t.stop(); });
