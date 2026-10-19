@@ -37,6 +37,16 @@ async function waitFor(check) {
   while (!check()) { if (Date.now() > deadline) throw new Error('Timed out waiting for event'); await new Promise(r => setTimeout(r, 5)); }
 }
 const command = (ws, type, extra = {}) => ws.send(JSON.stringify({ type, ...extra }));
+test('room keeps connection open and returns ready after exhausted router 429',async t=>{
+  const pipeline={credentials:async()=>({}),translate:async()=>{throw Object.assign(new Error('9Router đang giới hạn'),{status:429,code:'ROUTER_RATE_LIMITED',source:'Xin chào'});}};
+  const {wa,wb}=await pair(t,{env:{TRANSLATION_ENGINE:'hybrid'},pipeline});
+  command(wa,'speak');await waitFor(()=>wa.messages.at(-1)?.phase==='listening');
+  wa.send(Buffer.alloc(9600));command(wa,'commit');
+  await waitFor(()=>wa.messages.some(m=>m.type==='error' && m.code==='ROUTER_RATE_LIMITED'));
+  assert.equal(wa.readyState,1);assert.equal(wb.readyState,1);
+  assert.equal(wa.messages.filter(m=>m.type==='state').at(-1).phase,'ready');
+  command(wa,'speak');await waitFor(()=>wa.messages.at(-1)?.phase==='listening');
+});
 test('hybrid HTTP validates origin and returns pipeline audio without exposing credentials', async t => {
   let calls = 0;
   const pipeline = { model:'gemini-test', credentials:async () => ({}), translate:async () => { calls++; return { source:'Xin chào', translation:'你好', audio:Buffer.alloc(480) }; } };

@@ -5,6 +5,46 @@ import { TranslationPipeline, pcmToWav, wavToPcm } from '../lib/pipeline.js';
 const pcm = Buffer.alloc(9600);
 const env = { ROUTER_API_KEY: 'test-router', GOOGLE_TTS_API_KEY: 'test-google' };
 const json = value => new Response(JSON.stringify(value));
+function throttled(statuses, retryAfter='3', sleep=async()=>{}) {
+  const calls=[]; const waits=[];
+  const pipeline=new TranslationPipeline({env,keyLoader:async()=> 'test',sleep:async(ms,signal)=>{waits.push(ms);await sleep(ms,signal);},fetchImpl:async(url)=>{
+    calls.push(url);
+    if(url.includes('transcriptions'))return json({text:'Xin chào'});
+    if(url.includes('chat/completions')) {
+      const status=statuses.shift() ?? 429;
+      if(status!==200)return new Response('SECRET',{status,headers:retryAfter===null?{}:{'Retry-After':retryAfter}});
+      return json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({sourceLanguage:'vi',targetLanguage:'zh',translation:'你好'})}}]});
+    }
+    return json({audioContent:pcmToWav(pcm).toString('base64')});
+  }});
+  return {pipeline,calls,waits};
+}
+test('429 waits Retry-After and retries only translation at most twice',async()=>{
+  const {pipeline,calls,waits}=throttled([429,429,200]);
+  await pipeline.translate({pcm,pair:'vi-zh'});
+  assert.deepEqual(waits,[3000,3000]);
+  assert.equal(calls.filter(u=>u.includes('transcriptions')).length,1);
+  assert.equal(calls.filter(u=>u.includes('chat/completions')).length,3);
+  assert.equal(calls.filter(u=>u.includes('text:synthesize')).length,1);
+});
+test('exhausted 429 stays 429 with safe code and source, no TTS',async()=>{
+  const {pipeline,calls,waits}=throttled([429,429,429],null);
+  await assert.rejects(pipeline.translate({pcm,pair:'vi-zh'}),e=>e.status===429 && e.code==='ROUTER_RATE_LIMITED' && e.source==='Xin chào' && !e.message.includes('SECRET'));
+  assert.deepEqual(waits,[2000,4000]);assert.equal(calls.length,4);assert.equal(pipeline.active,0);
+});
+test('long Retry-After is not retried early, and non-429 is never retried',async()=>{
+  for(const [status,header] of [[429,'120'],[401,'3'],[500,'3']]) {
+    const {pipeline,calls,waits}=throttled([status],header);
+    await assert.rejects(pipeline.translate({pcm,pair:'vi-zh'}));
+    assert.equal(calls.length,2);assert.equal(waits.length,0);
+  }
+});
+test('abort while waiting prevents another paid request',async()=>{
+  const aborter=new AbortController();
+  const {pipeline,calls}=throttled([429,200],'3',async(_ms,signal)=>{aborter.abort();signal.throwIfAborted();});
+  await assert.rejects(pipeline.translate({pcm,pair:'vi-zh',signal:aborter.signal}));
+  assert.equal(calls.length,2);assert.equal(pipeline.active,0);
+});
 function fixture(sourceLanguage = 'vi', targetLanguage = 'zh', overrides = {}) {
   const calls = [];
   const pipeline = new TranslationPipeline({ env, keyLoader: async () => 'test-openai', fetchImpl: async (url, options) => {
