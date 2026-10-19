@@ -30,8 +30,12 @@ function renderState() {
   const labels = { waiting: 'Đang chờ người kia / 等待对方', connecting: 'Đang mở phiên dịch / 正在连接', ready: 'Sẵn sàng / 已准备好', listening: mine ? 'Đang nghe bạn nói / 正在聆听' : 'Người kia đang nói / 对方正在说话', translating: 'Đang dịch / 正在翻译', playing: 'Đang phát bản dịch / 正在播放', committing: 'Đang gửi câu nói…' };
   $('status').textContent = labels[phase] || 'Đang kết nối…';
   $('detail').textContent = phase === 'listening' && mine ? 'Micro đang mở · Nói để trả lời, dừng 2 giây để dịch · 请回答' : 'Micro đang tắt · Phát xong bản dịch sẽ tự chuyển lượt';
-  const step = ['translating', 'committing', 'connecting'].includes(phase) ? 'translate' : phase === 'playing' ? 'play' : 'listen';
-  document.querySelectorAll('[data-flow-step]').forEach(item => item.classList.toggle('current', item.dataset.flowStep === step));
+  const step = ['translating', 'committing'].includes(phase) ? 'translate' : phase === 'playing' ? 'play' : 'listen';
+  document.querySelectorAll('[data-flow-step]').forEach(item => {
+    const current = item.dataset.flowStep === step;
+    item.classList.toggle('current', current);
+    if (current) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
+  });
   if (!['waiting', 'connecting'].includes(phase)) $('invite-panel').hidden = true;
 }
 function frame(buffer) {
@@ -48,9 +52,9 @@ function frame(buffer) {
     for (const frame of preRoll) { socket.send(frame); sentBytes += frame.byteLength; }
     preRoll = [];
   } else { socket.send(buffer); sentBytes += buffer.byteLength; }
-  if (gate.sample(level, performance.now())) commit('silence');
+  if (gate.sample(level, performance.now())) commit();
 }
-async function commit(reason = 'manual') {
+async function commit() {
   if (flushing || phase !== 'listening' || speaker !== member?.memberId) return;
   flushing = true; $('speak').disabled = true;
   const run = generation;

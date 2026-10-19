@@ -43,8 +43,12 @@ function setPhase(value) {
   $('clear').disabled = active || value === 'connecting';
   $('language-pair').disabled = value !== 'idle';
   $('wave').classList.toggle('active', value === 'playing');
-  const step = ['waiting', 'connecting'].includes(value) ? 'translate' : ['playing', 'finishing'].includes(value) ? 'play' : 'listen';
-  document.querySelectorAll('[data-flow-step]').forEach(item => item.classList.toggle('current', item.dataset.flowStep === step));
+  const step = value === 'waiting' ? 'translate' : ['playing', 'finishing'].includes(value) ? 'play' : 'listen';
+  document.querySelectorAll('[data-flow-step]').forEach(item => {
+    const current = item.dataset.flowStep === step;
+    item.classList.toggle('current', current);
+    if (current) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
+  });
 }
 function clearTimer() { clearTimeout(watchdog); watchdog = undefined; }
 function watch(ms, message) { clearTimer(); watchdog = setTimeout(() => fail(message), ms); }
