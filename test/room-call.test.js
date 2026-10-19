@@ -37,6 +37,35 @@ async function waitFor(check) {
   while (!check()) { if (Date.now() > deadline) throw new Error('Timed out waiting for event'); await new Promise(r => setTimeout(r, 5)); }
 }
 const command = (ws, type, extra = {}) => ws.send(JSON.stringify({ type, ...extra }));
+test('hybrid HTTP validates origin and returns pipeline audio without exposing credentials', async t => {
+  let calls = 0;
+  const pipeline = { model:'gemini-test', credentials:async () => ({}), translate:async () => { calls++; return { source:'Xin chào', translation:'你好', audio:Buffer.alloc(480) }; } };
+  const { base } = await fixture(t, { env:{TRANSLATION_ENGINE:'hybrid'}, pipeline });
+  const headers = {Origin:base,'Content-Type':'application/octet-stream','X-Translation-Client':'1','X-Language-Pair':'vi-zh'};
+  const health = await (await fetch(base+'/api/health')).json();
+  assert.equal(health.engine,'hybrid');
+  const response = await fetch(base+'/api/translate-audio', {method:'POST',headers,body:Buffer.alloc(9600)});
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).audio,Buffer.alloc(480).toString('base64'));
+  assert.equal((await fetch(base+'/api/translate-audio',{method:'POST',headers:{...headers,Origin:'https://evil.example'},body:Buffer.alloc(9600)})).status,403);
+  assert.equal(calls,1);
+});
+test('hybrid room uses shared pipeline and waits for listener playback', async t => {
+  const calls=[];
+  const pipeline={credentials:async () => ({}), translate:async data => { calls.push(data); return {source:'Xin chào',translation:'你好',audio:Buffer.alloc(9600)}; }};
+  const {wa,wb,b,providers}=await pair(t,{env:{TRANSLATION_ENGINE:'hybrid'},pipeline});
+  command(wa,'speak'); await waitFor(()=>wa.messages.at(-1)?.phase==='listening');
+  wa.send(Buffer.alloc(9600)); command(wa,'commit');
+  await waitFor(()=>wb.messages.at(-1)?.type==='audio-end');
+  assert.equal(calls[0].sourceLanguage,'vi');
+  assert.equal(calls[0].pcm.length,9600);
+  assert.equal(providers.length,0);
+  assert.equal(wa.messages.filter(m=>m.type==='audio').length,0);
+  const turnId=wb.messages.at(-1).turnId;
+  command(wb,'played',{turnId});
+  await waitFor(()=>wa.messages.at(-1)?.phase==='listening');
+  assert.equal(wa.messages.at(-1).speaker,b.memberId);
+});
 async function pair(t, options) {
   const f = await fixture(t, options);
   const a = await f.post('/api/rooms', { language: 'vi' });
