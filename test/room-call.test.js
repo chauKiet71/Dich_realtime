@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter, once } from 'node:events';
 import WebSocket from 'ws';
+import http from 'node:http';
 import { createApp } from '../server.js';
 import { RoomHub, roomSessionConfig } from '../lib/rooms.js';
 
@@ -127,4 +128,30 @@ test('room configs pin translation direction and PCM format without changing loc
   assert.match(zh.instructions, /Mandarin Chinese turn into Vietnamese/);
   assert.deepEqual(vi.audio.input.format, { type: 'audio/pcm', rate: 24000 });
   assert.deepEqual(zh.audio.input.transcription.languages, ['zh']);
+});
+
+test('authenticated room admission issues a secure cookie for WebSocket browsers that omit Basic auth', async t => {
+  let now = Date.now();
+  const f = await fixture(t, { now: () => now, env: { NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://example.com', APP_ACCESS_PASSWORD: 'test-password' } });
+  const response = await new Promise((resolve, reject) => {
+    const req = http.request(f.base + '/api/rooms', { method: 'POST', headers: {
+      Host: 'example.com', Origin: 'https://example.com', Authorization: 'Basic ' + Buffer.from('songngu:test-password').toString('base64'),
+      'Content-Type': 'application/json', 'X-Translation-Client': '1',
+    } }, res => { res.resume(); res.on('end', () => resolve(res)); });
+    req.on('error', reject); req.end(JSON.stringify({ language: 'vi' }));
+  });
+  assert.equal(response.statusCode, 201);
+  const cookie = response.headers['set-cookie']?.[0];
+  assert.ok(cookie, 'room admission must issue WebSocket authentication cookie');
+  for (const attribute of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/api/room/socket']) assert.ok(cookie.includes(attribute));
+  const connectStatus = cookieHeader => new Promise(resolve => {
+    const ws = new WebSocket(f.base.replace('http:', 'ws:') + '/api/room/socket', { origin: 'https://example.com', headers: { Host: 'example.com', Cookie: cookieHeader } });
+    ws.on('error', () => {});
+    ws.on('open', () => { ws.terminate(); resolve(101); });
+    ws.on('unexpected-response', (_, res) => { res.resume(); ws.terminate(); resolve(res.statusCode); });
+  });
+  assert.equal(await connectStatus(cookie.split(';')[0]), 101);
+  assert.equal(await connectStatus(cookie.split(';')[0] + 'tampered'), 403);
+  now += 16 * 60000;
+  assert.equal(await connectStatus(cookie.split(';')[0]), 403);
 });

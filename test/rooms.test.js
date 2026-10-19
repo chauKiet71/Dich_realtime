@@ -44,6 +44,8 @@ test('room creation is bounded and room page/assets are served', async t => {
   for (let i = 0; i < 6; i++) assert.equal((await post('/api/rooms', { language: 'vi' })).status, 201);
   assert.equal((await post('/api/rooms', { language: 'vi' })).status, 429);
   for (const path of ['/room', '/room.js', '/room.css', '/pcm-worklet.js', '/room-audio.js']) {
-    assert.equal((await fetch(base + path)).status, 200);
+    const response = await fetch(base + path);
+    assert.equal(response.status, 200);
+    assert.ok(response.headers.get('content-security-policy').includes(`connect-src 'self' ${base.replace('http:', 'ws:')}`));
   }
 });

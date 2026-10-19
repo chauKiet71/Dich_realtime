@@ -23,13 +23,17 @@ class Provider extends EventEmitter {
   }
   close() { this.readyState = 3; }
 }
-const app = createApp({ env: {}, keyLoader: async () => 'mock-only', providerFactory: () => new Provider() });
+const protectedMode = process.argv.includes('--protected');
+const app = createApp({ env: protectedMode ? { APP_ACCESS_PASSWORD: 'browser-test-only' } : {}, keyLoader: async () => 'mock-only', providerFactory: () => new Provider() });
+// Reproduce browsers/proxies that do not carry HTTP Basic auth into the upgrade.
+if (process.argv.includes('--omit-ws-basic')) app.prependListener('upgrade', req => { delete req.headers.authorization; });
 await new Promise(r => app.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${app.address().port}`;
 let browser;
 try {
   browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
-  const contexts = await Promise.all([browser.newContext({ permissions: ['microphone'], viewport: { width: 390, height: 844 } }), browser.newContext({ permissions: ['microphone'] })]);
+  const credentials = protectedMode ? { httpCredentials: { username: 'songngu', password: 'browser-test-only' } } : {};
+  const contexts = await Promise.all([browser.newContext({ ...credentials, permissions: ['microphone'], viewport: { width: 390, height: 844 } }), browser.newContext({ ...credentials, permissions: ['microphone'] })]);
   const errors = [];
   for (const context of contexts) await context.addInitScript(() => {
     window.audioStarts = 0; window.liveTracks = [];
