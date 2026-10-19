@@ -39,7 +39,7 @@ function mic(enabled) { if (hybridAudio) hybridAudio.capture(enabled); else stre
 function setPhase(value) {
   phase = value;
   const active = !['idle', 'connecting'].includes(value);
-  $('start-label').textContent = value === 'connecting' ? 'Hủy kết nối' : active ? 'Dừng phiên dịch' : 'Bắt đầu phiên dịch';
+  $('start-label').textContent = value === 'limited' ? 'Nói lại' : value === 'connecting' ? 'Hủy kết nối' : active ? 'Dừng phiên dịch' : 'Bắt đầu phiên dịch';
   $('start').classList.toggle('running', active || value === 'connecting');
   $('status-dot').classList.toggle('active', active);
   $('connection').classList.toggle('online', active);
@@ -70,6 +70,7 @@ function stop() {
   audio.pause(); audio.srcObject = null; $('resume-audio').hidden = true;
   gate.reset(); audioStarted = completionPending = false;
   if (pendingTurn && !pendingTurn.complete) pendingTurn.interrupted = true;
+  if (pendingTurn && !pendingTurn.translation) $('target-text').textContent='Lượt dịch đã dừng.';
   currentTurn = pendingTurn = responseTurn = undefined;
   setPhase('idle'); status('Đã dừng phiên dịch', 'Bấm bắt đầu để tiếp tục cuộc trò chuyện');
   renderHistory();
@@ -224,7 +225,8 @@ async function commitHybrid(run) {
   if (flushing || phase!=='listening') return;
   flushing=true; setPhase('waiting');
   pendingTurn=responseTurn=newTurn(); pendingTurn.committedAt=performance.now();
-  status('Đang dịch…','Nhận dạng → Gemini Flash → Google WaveNet');
+  notice(); status('Đang dịch…','Nếu 9Router giới hạn, tự chờ và thử lại tối đa 2 lần');
+  $('source-text').textContent='Đang nhận dạng câu mới…';
   $('target-text').textContent='Đang chuyển ngữ…';
   watch(95000,'Dịch vụ phản hồi quá lâu. Hãy thử lại.');
   try {
@@ -232,6 +234,17 @@ async function commitHybrid(run) {
     flushing=false; hybridAudio.playTurnEnd();
     const response=await fetch('/api/translate-audio',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Translation-Client':'1','X-Language-Pair':$('language-pair').value},body:utterance.take(),signal:aborter.signal});
     const result=await response.json(); if (run!==epoch) return;
+    if (response.status===429) {
+      clearTimer();mic(false);
+      if(result.source) { responseTurn.source=result.source; $('source-text').textContent=result.source; }
+      else $('source-text').textContent='Chưa nhận được bản chép lời cho câu này.';
+      responseTurn.interrupted=true;
+      responseTurn.translation='Chưa dịch được: dịch vụ đang giới hạn. Hãy chờ rồi nói lại.';
+      $('target-text').textContent=responseTurn.translation;
+      responseTurn=pendingTurn=currentTurn=undefined;utterance.reset();renderHistory();
+      setPhase('limited');status('Tạm chờ dịch vụ','Phiên vẫn mở · Chờ một lúc rồi bấm micro để nói lại');
+      notice(result.error || 'Dịch vụ đang giới hạn yêu cầu.');return;
+    }
     if (!response.ok) throw new Error(result.error || 'Không hoàn tất lượt dịch.');
     responseTurn.source=result.source; responseTurn.translation=result.translation;
     $('source-text').textContent=result.source; $('target-text').textContent=result.translation;
@@ -325,7 +338,7 @@ async function start() {
     fail(notices[error.name] || (error.name === 'AbortError' ? 'Đã hủy kết nối.' : error.message || 'Không thể bắt đầu phiên dịch.'));
   }
 }
-$('start').addEventListener('click', () => phase === 'idle' ? start() : stop());
+$('start').addEventListener('click', () => { if(phase==='limited') { notice();resumeListening(); } else if(phase==='idle') start();else stop(); });
 $('resume-audio').addEventListener('click', async () => { try { if (hybridAudio) await hybridAudio.resume(); else await audio.play(); $('resume-audio').hidden = true; } catch { notice('Trình duyệt chưa cho phép phát âm thanh. Kiểm tra thiết bị đầu ra.'); } });
 $('clear').addEventListener('click', () => {
   if (phase !== 'idle') return;
@@ -344,5 +357,6 @@ refreshPair();
 $('settings-button').addEventListener('click', () => { const open = $('settings').hidden; $('settings').hidden = !open; $('settings-button').setAttribute('aria-expanded', String(open)); });
 $('sensitivity').addEventListener('input', e => { gate.threshold = Number(e.target.value) / 1000; $('sensitivity-value').textContent = e.target.value; });
 window.addEventListener('pagehide', stop);
+window.addEventListener('translation-stop', stop);
 document.addEventListener('visibilitychange', () => { if (document.hidden && phase !== 'idle') fail('Phiên đã dừng khi bạn rời trang để tránh thu âm ngoài ý muốn.'); });
 fetch('/api/health').then(r => r.json()).then(data => { if (!data.configured) notice('Chưa đọc được API key. Hãy kiểm tra cấu hình máy chủ trước khi bắt đầu.'); }).catch(() => notice('Không kết nối được máy chủ. Hãy chạy npm start.'));

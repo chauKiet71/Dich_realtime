@@ -125,7 +125,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
           const result = await pipeline.translate({pcm:Buffer.concat(chunks),pair,signal:controller.signal});
           if (!controller.signal.aborted) return send(res,200,{...result,audio:result.audio.toString('base64')});
         } catch (e) {
-          if (!controller.signal.aborted) return send(res,[400,429,502,503].includes(e.status)?e.status:502,{error:e.status?e.message:'Không hoàn tất lượt dịch. Hãy thử lại.'});
+          if (!controller.signal.aborted) return send(res,[400,429,502,503].includes(e.status)?e.status:502,{error:e.status?e.message:'Không hoàn tất lượt dịch. Hãy thử lại.',...(e.code==='ROUTER_RATE_LIMITED'?{code:e.code,source:e.source}: {})});
         } finally { res.off('close',cancel); }
         return;
       }

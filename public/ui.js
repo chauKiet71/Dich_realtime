@@ -41,7 +41,7 @@ if (!room) {
   const titles = { home: ['Song Ngữ', 'Nói tự nhiên. Hiểu ngay.'], choice: ['', ''], conversation: ['Trò chuyện', 'Việt ↔ Trung'], history: ['Lịch sử phiên', 'Chỉ lưu trong tab này'], settings: ['Cài đặt', 'Phù hợp với không gian của bạn'] };
   function show(view) {
     // Leaving the microphone screen must never leave an invisible recording running.
-    if (view !== 'conversation' && $('language-pair').disabled) $('start').click();
+    if (view !== 'conversation' && $('language-pair').disabled) window.dispatchEvent(new Event('translation-stop'));
     document.body.dataset.view = view;
     for (const [id, key] of [['home-view', 'home'], ['choice-view', 'choice'], ['translator-workspace', 'conversation'], ['history-view', 'history'], ['settings', 'settings']]) $(id).hidden = view !== key;
     $('screen-title').textContent = titles[view][0];
