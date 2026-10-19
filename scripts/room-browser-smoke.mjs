@@ -36,12 +36,22 @@ try {
   const contexts = await Promise.all([browser.newContext({ ...credentials, permissions: ['microphone'], viewport: { width: 390, height: 844 } }), browser.newContext({ ...credentials, permissions: ['microphone'] })]);
   const errors = [];
   for (const context of contexts) await context.addInitScript(() => {
-    window.audioStarts = 0; window.liveTracks = [];
+    window.audioStarts = 0; window.liveTracks = []; window.playEvents = []; window.commitTimes = [];
+    const send = WebSocket.prototype.send;
+    WebSocket.prototype.send = function (data) {
+      if (typeof data === 'string' && JSON.parse(data).type === 'commit') window.commitTimes.push(performance.now());
+      return send.call(this, data);
+    };
+    const createInput = AudioContext.prototype.createMediaStreamSource;
+    AudioContext.prototype.createMediaStreamSource = function (stream) {
+      const source = createInput.call(this, stream), gain = this.createGain();
+      source.connect(gain); window.micGain = gain; return gain;
+    };
     const create = AudioContext.prototype.createBufferSource;
     AudioContext.prototype.createBufferSource = function () {
       window.roomContext = this;
       const source = create.call(this), start = source.start.bind(source);
-      source.start = (...args) => { window.audioStarts++; if (window.blockPlayback) { window.blockPlayback = false; void this.suspend(); } return start(...args); }; return source;
+      source.start = (...args) => { window.audioStarts++; window.playEvents.push({ at: performance.now(), micOn: window.liveTracks.some(t => t.enabled), duration: source.buffer.duration }); if (window.blockPlayback) { window.blockPlayback = false; void this.suspend(); } return start(...args); }; return source;
     };
     const get = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = async (...args) => { const stream = await get(...args); window.liveTracks.push(...stream.getTracks()); return stream; };
@@ -83,6 +93,23 @@ try {
   }
   assert.equal(await a.evaluate(() => window.audioStarts), 1);
   assert.equal(await b.evaluate(() => window.audioStarts), 1);
+  for (const [sender, listener] of [[a, b], [b, a]]) {
+    const beforeSender = await sender.evaluate(() => window.audioStarts);
+    const beforeListener = await listener.evaluate(() => window.audioStarts);
+    await sender.locator('#speak').click();
+    await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Đang nghe'));
+    await sender.waitForTimeout(800);
+    const silenceAt = await sender.evaluate(() => { window.micGain.gain.value = 0; return performance.now(); });
+    await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Sẵn sàng'));
+    assert.equal(await sender.evaluate(() => window.audioStarts), beforeSender + 1, 'auto-stop cue plays once on speaker');
+    assert.equal(await listener.evaluate(() => window.audioStarts), beforeListener + 1, 'listener hears only translation');
+    const evidence = await sender.evaluate(() => ({ cue: window.playEvents.at(-1), commit: window.commitTimes.at(-1) }));
+    assert.equal(evidence.cue.micOn, false);
+    assert.ok(evidence.cue.at - silenceAt >= 1800 && evidence.cue.at - silenceAt < 3000);
+    assert.ok(evidence.cue.duration > 1 && evidence.cue.duration < 1.3);
+    assert.ok(Math.abs(evidence.commit - evidence.cue.at) < 200, 'commit does not wait for the cue to finish');
+    await sender.evaluate(() => { window.micGain.gain.value = 1; });
+  }
   assert.match(await b.locator('#translation').textContent(), /测试翻译/);
   await b.locator('#leave').click();
   await a.locator('#setup').waitFor({ state: 'visible' });
