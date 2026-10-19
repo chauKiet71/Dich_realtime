@@ -62,8 +62,9 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
    hệ thống tự chọn ngôn ngữ đối ứng. Mật khẩu website vẫn áp dụng cho cả hai.
 4. Khi báo **Sẵn sàng**, bấm **Đến lượt tôi nói**. Ngừng khoảng 2 giây để dịch,
    hoặc bấm **Dịch câu này**. Người kia nghe bản dịch bằng ngôn ngữ của họ.
-   Sau khi tắt micro, máy người nói phát âm báo xác nhận (kể cả khi bấm chốt thủ
-   công). Yêu cầu dịch được gửi ngay, không chờ âm báo kết thúc.
+   Sau khi tắt micro, máy người nói phát audio xác nhận do người dùng cung cấp
+   (kể cả khi bấm chốt thủ công). Yêu cầu dịch được gửi ngay, không chờ âm báo
+   kết thúc; bíp tổng hợp chỉ dùng nếu asset không tải được.
 5. Sau khi nghe hết bản dịch, micro người nghe **tự mở để trả lời**. Không cần
    bấm nói ở mỗi lượt; máy chủ chuyển quyền nói sau xác nhận phát xong từ người nghe.
    Nếu trình duyệt chặn phát âm thanh, bấm **Bật âm thanh**; micro vẫn tắt đến khi

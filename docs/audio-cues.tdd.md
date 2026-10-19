@@ -20,7 +20,8 @@ Không dùng plan file. Tiêu chí được rút ra trực tiếp từ yêu cầ
 | Hai âm báo phân biệt và không khóa ứng dụng khi audio lỗi | `node --test test/audio-cues.test.js` thất bại với `ERR_MODULE_NOT_FOUND` trước khi có `public/audio-cues.js` | Cùng lệnh PASS 4/4 | Bíp chốt câu là một âm 620 Hz; bíp hoàn tất tăng 820/1040 Hz; fallback vẫn gọi completion; cue cũ có thể bị hủy an toàn |
 | Phòng chờ bíp hoàn tất trước khi xác nhận playback | `node --test test/audio-cues.test.js test/room-cue.test.js test/server.test.js` thất bại vì thiếu `playTranslationEnd` và asset trả 404 | Cùng lệnh PASS 18/18 | Module được phục vụ qua allowlist; callback chuyển lượt chỉ chạy sau khi bíp đôi kết thúc |
 | Phòng luôn bíp khi chốt câu, không phụ thuộc WAV tải nền | `node --test --test-name-pattern="speech completion beeps" test/room-cue.test.js` thất bại vì `playTurnEnd()` trả `undefined` khi chưa có buffer | Cùng lệnh PASS sau khi chuyển sang Web Audio | Một oscillator 620 Hz được tạo ngay cả khi legacy WAV chưa tải; suspend/synthesis error vẫn không khóa cuộc gọi |
-| Toàn bộ hồi quy máy chủ và điều phối lượt | Không áp dụng RED riêng; dùng suite hồi quy hiện có sau GREEN | `npm run test:coverage` PASS 44/44 | Không làm hỏng quota, xác thực, WebSocket, thứ tự lượt, giới hạn thời gian và xử lý transcript |
+| Phòng ưu tiên audio do người dùng cung cấp | `node --test --test-name-pattern="prefers the decoded audio" test/room-cue.test.js` thất bại vì chỉ tạo oscillator | Cùng lệnh PASS sau khi preload WAV trước micro | Khi buffer đã giải mã, `playTurnEnd()` dùng `AudioBufferSourceNode`; oscillator chỉ là fallback |
+| Toàn bộ hồi quy máy chủ và điều phối lượt | Không áp dụng RED riêng; dùng suite hồi quy hiện có sau GREEN | `npm run test:coverage` PASS 45/45 | Không làm hỏng quota, xác thực, WebSocket, thứ tự lượt, giới hạn thời gian và xử lý transcript |
 
 Checkpoint TDD trên nhánh hiện tại:
 
@@ -30,10 +31,12 @@ Checkpoint TDD trên nhánh hiện tại:
 - `0e08054` — refactor trạng thái bước hiện tại và bổ sung `aria-current`.
 - `82ed1fa` — test RED tái hiện phòng không bíp khi WAV chưa tải.
 - `26031cf` — fix GREEN chuyển bíp kết thúc câu của phòng sang Web Audio.
+- `b741331` — test RED yêu cầu ưu tiên audio người dùng cung cấp.
+- `2d21cde` — fix GREEN preload và phát WAV, giữ Web Audio làm fallback.
 
 ## Coverage và kiểm chứng
 
-- `npm run test:coverage`: 44/44 PASS; line 91,28%, branch 87,85%, function 80,95%.
+- `npm run test:coverage`: 45/45 PASS; line 89,95%, branch 87,99%, function 80,23%.
 - `npm run check`: PASS cho toàn bộ JavaScript chạy thực tế, gồm `audio-cues.js`.
 - `git diff --check`: PASS.
 - Rà `sk-`, `OPENAI_API_KEY=` và `console.log`: không phát hiện secret; các
