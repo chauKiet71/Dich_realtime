@@ -58,3 +58,12 @@ test('speech completion beeps even when the legacy WAV has not loaded', () => {
   assert.equal(room.playTurnEnd(), true);
   assert.deepEqual(events.filter(event => event === 'tone-start'), ['tone-start']);
 });
+
+test('resuming room audio delegates to the shared audio context', async () => {
+  const { room, events } = audio();
+  room.context.resume = async () => { events.push('resume'); };
+
+  await room.resume();
+
+  assert.deepEqual(events, ['resume']);
+});
