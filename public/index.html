@@ -2,15 +2,15 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#234e43"><title>Song Ngữ · Trung ↔ Việt</title>
+  <meta name="theme-color" content="#f4f8ff"><title>Song Ngữ · Trung ↔ Việt</title>
   <meta name="description" content="Phiên dịch giọng nói Việt–Trung và Việt–Anh theo thời gian thực.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23234e43'/%3E%3Ctext x='12' y='46' fill='white' font-size='43'%3E言%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/redesign.css"><script type="module" src="/app.js"></script><script type="module" src="/ui.js"></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="/" aria-label="Song Ngữ trang chủ"><span class="brandmark">言</span><span>song ngữ<span class="branddot">.</span></span></a><div class="top-right"><span class="version">PHIÊN DỊCH TRỰC TIẾP</span><span class="connection" id="connection"><i></i> Chưa kết nối</span></div></header>
   <main>
-    <section class="intro"><div><div class="eyebrow">HAI NGÔN NGỮ. MỘT CUỘC TRÒ CHUYỆN.</div><h1>Cứ nói, để chúng tôi<br><em>kết nối.</em></h1><p id="intro-description">Nói tiếng Trung hoặc tiếng Việt. Ngừng khoảng 2 giây,<br class="desktop"> bản dịch sẽ được đọc thành tiếng.</p></div><div id="pair-illustration" class="language-pair" aria-label="Tiếng Trung và tiếng Việt"><span class="character"><span id="pair-symbol">中</span><small id="pair-code">ZH</small></span><span class="pair-arrow">⇄</span><span class="character vietnamese">Vi<small>VI</small></span></div></section>
+    <section class="intro"><div><div class="eyebrow">HAI NGÔN NGỮ. MỘT CUỘC TRÒ CHUYỆN.</div><h1>Cứ nói, để chúng tôi<br><em>kết nối.</em></h1><p id="intro-description">Nói tiếng Trung hoặc tiếng Việt. Ngừng khoảng 700 ms,<br class="desktop"> bản dịch sẽ được đọc thành tiếng.</p></div><div id="pair-illustration" class="language-pair" aria-label="Tiếng Trung và tiếng Việt"><span class="character"><span id="pair-symbol">中</span><small id="pair-code">ZH</small></span><span class="pair-arrow">⇄</span><span class="character vietnamese">Vi<small>VI</small></span></div></section>
     <div class="pair-picker"><label for="language-pair">Chế độ phiên dịch</label><select id="language-pair" aria-describedby="pair-help"><option value="vi-zh">Việt ↔ Trung</option><option value="vi-en">Việt ↔ Anh</option></select><span id="pair-help">Dừng phiên để đổi chế độ.</span><a href="/room">Gọi giữa hai thiết bị · Việt ⇄ Trung →</a></div>
     <ol class="flow-steps" aria-label="Ba bước phiên dịch">
       <li class="current" data-flow-step="listen" aria-current="step"><span>1</span><div><strong>Nói tự nhiên</strong><small>Micro đang nghe bạn</small></div></li>
@@ -26,7 +26,7 @@
       <div class="cue-legend"><span><i class="cue-dot low"></i>Bíp ngắn: đã nhận câu</span><span><i class="cue-dot high"></i>Bíp đôi: bản dịch hoàn tất</span></div>
     </section>
     <div class="bottom-row"><span class="privacy"><span aria-hidden="true">◈</span> Âm thanh được gửi đến OpenAI khi bắt đầu. Không lưu bản ghi trên máy chủ.</span><button class="text-button" id="settings-button" aria-expanded="false" aria-controls="settings">Tùy chỉnh <span aria-hidden="true">⚙</span></button></div>
-    <section id="settings" class="settings" hidden><div><h3>Phù hợp với không gian của bạn</h3><p>Nếu tiếng ồn khiến ứng dụng chưa chốt câu, tăng ngưỡng nhận giọng nói.</p></div><label>Ngưỡng nhận giọng nói <input id="sensitivity" type="range" min="8" max="70" value="18"><span id="sensitivity-value">18</span></label><div class="setting-note">Chốt câu sau 2 giây im lặng. Micro tạm ngắt khi đọc bản dịch để tránh vọng âm.</div></section>
+    <section id="settings" class="settings" hidden><div><h3>Phù hợp với không gian của bạn</h3><p>Nếu tiếng ồn khiến ứng dụng chưa chốt câu, tăng ngưỡng nhận giọng nói.</p></div><label>Ngưỡng nhận giọng nói <input id="sensitivity" type="range" min="8" max="70" value="18"><span id="sensitivity-value">18</span></label><div class="setting-note">Chốt câu sau 700 ms im lặng. Micro tạm ngắt khi đọc bản dịch để tránh vọng âm.</div></section>
     <section class="history"><div class="history-heading"><h2>Cuộc trò chuyện <span id="history-count">0</span></h2><span>Chỉ lưu trong phiên này</span></div><div id="history-list"><div class="empty-history"><span>↔</span><p>Câu chuyện của bạn sẽ xuất hiện ở đây.</p></div></div></section>
     <footer><span>Được tạo để hiểu nhau.</span><span>Tiếng Việt <span class="footer-dot">•</span> 中文 <span class="footer-dot">•</span> English</span></footer>
   </main>

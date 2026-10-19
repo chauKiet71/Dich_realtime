@@ -2,9 +2,9 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#234e43"><title>Phòng gọi · Song Ngữ</title>
-  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/room.css">
-  <script type="module" src="/room.js"></script>
+  <meta name="theme-color" content="#f4f8ff"><title>Phòng gọi · Song Ngữ</title>
+  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/room.css"><link rel="stylesheet" href="/redesign.css">
+  <script type="module" src="/room.js"></script><script type="module" src="/ui.js"></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="/"><span class="brandmark">言</span><span>song ngữ.</span></a><a class="text-button" href="/">Dịch trên một thiết bị</a></header>
@@ -28,7 +28,7 @@
       <div class="cue-legend"><span><i class="cue-dot low"></i>Bíp ngắn: đã nhận câu</span><span><i class="cue-dot high"></i>Bíp đôi: đã phát xong bản dịch</span></div>
     </section>
     <div id="notice" class="notice" role="alert" hidden></div>
-    <p class="room-note">Bấm nói để bắt đầu lượt đầu. Sau khi nghe hết bản dịch, micro của bạn tự mở để trả lời và tiếp tục chờ cho đến khi bạn nói. Sau khi nói, im lặng khoảng 2 giây để dịch, hoặc bấm “Dịch câu này”. / 翻译播放结束后，麦克风自动开启并等待您说话。</p>
+    <p class="room-note">Bấm nói để bắt đầu lượt đầu. Sau khi nghe hết bản dịch, micro của bạn tự mở để trả lời và tiếp tục chờ cho đến khi bạn nói. Sau khi nói, im lặng khoảng 700 ms để dịch, hoặc bấm “Dịch câu này”. / 翻译播放结束后，麦克风自动开启并等待您说话。</p>
     <p class="room-note">Dùng tai nghe để giảm tiếng vọng. Mỗi câu tối đa 30 giây; phòng tối đa 15 phút.</p>
     <p class="room-note">Âm thanh đi qua máy chủ và OpenAI để phiên dịch. Ứng dụng không lưu bản ghi hay nội dung cuộc gọi vào đĩa. Rời trang hoặc mất kết nối sẽ đóng phòng.</p>
     <section class="history"><div class="history-heading"><h2>Cuộc trò chuyện / 对话</h2><span>Chỉ trong tab này</span></div><div id="room-history" aria-live="polite"></div></section>

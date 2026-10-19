@@ -8,6 +8,8 @@ import { RoomHub } from './lib/rooms.js';
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css']],
+  ['/redesign.css', ['redesign.css', 'text/css']],
+  ['/ui.js', ['ui.js', 'text/javascript']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/core.js', ['core.js', 'text/javascript']],
   ['/audio-cues.js', ['audio-cues.js', 'text/javascript']],
