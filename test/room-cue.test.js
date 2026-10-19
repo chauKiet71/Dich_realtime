@@ -8,6 +8,13 @@ function audio() {
   room.context = {
     state: 'running', currentTime: 10, destination: {}, close: async () => {},
     createBufferSource: () => ({ connect: () => events.push('connect'), start: () => events.push('start'), stop: () => events.push('stop'), disconnect: () => events.push('disconnect') }),
+    createOscillator: () => ({
+      frequency: { setValueAtTime() {} }, connect() {}, disconnect() {},
+      start: () => events.push('tone-start'), stop: () => events.push('tone-stop'),
+    }),
+    createGain: () => ({
+      gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {},
+    }),
   };
   room.cueBuffer = {}; return { room, events };
 }
@@ -32,4 +39,15 @@ test('missing cue, suspended context, or playback failure does not interrupt tra
   room.cueBuffer = {}; room.context.state = 'suspended'; room.playTurnEnd(); assert.deepEqual(events, []);
   room.context.state = 'running'; room.context.createBufferSource = () => { throw new Error('Audio unavailable'); };
   assert.doesNotThrow(() => room.playTurnEnd());
+});
+
+test('translation completion uses the distinct cue and waits for its ending', () => {
+  const { room, events } = audio();
+  let completed = 0;
+
+  assert.equal(room.playTranslationEnd(() => completed++), true);
+  assert.deepEqual(events.filter(event => event === 'tone-start'), ['tone-start', 'tone-start']);
+  assert.equal(completed, 0);
+  for (const group of room.cues.groups) group.nodes.forEach(node => node.onended());
+  assert.equal(completed, 1);
 });

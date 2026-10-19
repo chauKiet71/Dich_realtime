@@ -97,7 +97,7 @@ test('limits session attempts and serves only allowlisted public assets', async 
   for (const path of ['/.env.local', '/server.js', '/lib/session.js', '/AGENTS.md', '/%2e%2e/.env.local']) {
     assert.equal((await fetch(base + path)).status, 404);
   }
-  for (const path of ['/', '/app.js', '/style.css', '/core.js']) {
+  for (const path of ['/', '/app.js', '/style.css', '/core.js', '/audio-cues.js']) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('X-Frame-Options'), 'DENY');
