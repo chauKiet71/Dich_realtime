@@ -1,11 +1,12 @@
 import { SilenceGate, TranscriptStore } from './core.js';
+import { AudioCues } from './audio-cues.js';
 
 const $ = id => document.getElementById(id);
 const gate = new SilenceGate();
 let sourceStore = new TranscriptStore();
-let phase = 'idle', epoch = 0, peer, channel, stream, context, analyser, sampleBuffer, timer, watchdog, aborter;
+let phase = 'idle', epoch = 0, peer, channel, stream, context, cues, analyser, sampleBuffer, timer, watchdog, aborter;
 let currentTurn, pendingTurn, responseTurn, turns = [], responseTurns = new Map(), inputTurns = new Map();
-let audioStarted = false, lastClear = 0, sessionStarted = 0;
+let audioStarted = false, completionPending = false, lastClear = 0, sessionStarted = 0;
 const audio = $('remote-audio');
 const pairs = {
   'vi-zh': { label: 'VIỆT ⇄ TRUNG', spoken: 'tiếng Việt hoặc tiếng Trung phổ thông', symbol: '中', code: 'ZH' },
@@ -42,6 +43,8 @@ function setPhase(value) {
   $('clear').disabled = active || value === 'connecting';
   $('language-pair').disabled = value !== 'idle';
   $('wave').classList.toggle('active', value === 'playing');
+  const step = ['waiting', 'connecting'].includes(value) ? 'translate' : ['playing', 'finishing'].includes(value) ? 'play' : 'listen';
+  document.querySelectorAll('[data-flow-step]').forEach(item => item.classList.toggle('current', item.dataset.flowStep === step));
 }
 function clearTimer() { clearTimeout(watchdog); watchdog = undefined; }
 function watch(ms, message) { clearTimer(); watchdog = setTimeout(() => fail(message), ms); }
@@ -53,10 +56,10 @@ function stop() {
   if (channel) { channel.onmessage = channel.onclose = channel.onopen = channel.onerror = null; channel.close(); }
   if (peer) { peer.onconnectionstatechange = peer.ontrack = null; peer.close(); }
   stream?.getTracks().forEach(track => { track.onended = null; track.stop(); });
-  context?.close().catch(() => {});
-  peer = channel = stream = context = analyser = undefined;
+  cues?.stop(); context?.close().catch(() => {});
+  peer = channel = stream = context = cues = analyser = undefined;
   audio.pause(); audio.srcObject = null; $('resume-audio').hidden = true;
-  gate.reset(); audioStarted = false;
+  gate.reset(); audioStarted = completionPending = false;
   if (pendingTurn && !pendingTurn.complete) pendingTurn.interrupted = true;
   currentTurn = pendingTurn = responseTurn = undefined;
   setPhase('idle'); status('Đã dừng phiên dịch', 'Bấm bắt đầu để tiếp tục cuộc trò chuyện');
@@ -67,7 +70,7 @@ function resumeListening() {
   clearTimer();
   if (responseTurn) responseTurn.complete = true;
   responseTurn = pendingTurn = currentTurn = undefined;
-  audioStarted = false;
+  audioStarted = completionPending = false;
   gate.reset(); lastClear = performance.now();
   send({ type: 'input_audio_buffer.clear' });
   mic(true); setPhase('listening');
@@ -75,6 +78,15 @@ function resumeListening() {
   $('source-hint').textContent = 'Bản chép lời xuất hiện khi bạn nói';
   $('target-hint').textContent = 'Tự động phát giọng nói AI';
   renderHistory();
+}
+function finishTranslation() {
+  if (phase === 'idle' || completionPending) return;
+  completionPending = true;
+  const run = epoch;
+  clearTimer(); mic(false); setPhase('finishing');
+  status('Bản dịch đã hoàn tất', 'Bíp đôi báo hiệu bạn có thể chuẩn bị nói tiếp');
+  const done = () => { if (run === epoch) resumeListening(); };
+  if (!cues) done(); else cues.play('translation-end', done);
 }
 function newTurn() {
   const turn = { index: turns.length + 1, pair: selectedPair().label, source: '', translation: '', complete: false };
@@ -155,14 +167,15 @@ function handle(event) {
     watch(120000, 'Lượt phát quá dài. Phiên đã dừng; hãy nói thành các câu ngắn hơn.');
     audio.play().catch(() => { $('resume-audio').hidden = false; });
   }
-  if (event.type === 'output_audio_buffer.stopped' || event.type === 'output_audio_buffer.cleared') {
+  if (event.type === 'output_audio_buffer.stopped') {
     // response.done can precede actual speaker playback; only this event releases the microphone.
-    resumeListening();
+    finishTranslation();
   }
+  if (event.type === 'output_audio_buffer.cleared' && !completionPending) resumeListening();
   if (event.type === 'response.done') {
     if (event.response.status !== 'completed') { fail('Lượt dịch chưa hoàn tất. Hãy bắt đầu lại và thử câu ngắn hơn.'); return; }
     const hasAudio = event.response.output?.some(item => item.content?.some(part => part.type === 'audio'));
-    if (!hasAudio && !audioStarted) resumeListening();
+    if (!hasAudio && !audioStarted) finishTranslation();
   }
 }
 function tick() {
@@ -178,8 +191,9 @@ function tick() {
     pendingTurn = currentTurn || newTurn(); currentTurn = undefined;
     pendingTurn.committedAt = now;
     mic(false); setPhase('waiting');
-    status('Đang dịch…', 'Đã nhận đủ 2 giây im lặng');
+    status('Đang dịch…', 'Đã nhận câu · tiếng bíp xác nhận micro đã tắt');
     $('target-text').textContent = 'Đang chuyển ngữ…';
+    cues?.play('speech-end');
     // Commit precedes response.create on the ordered RTC data channel.
     send({ type: 'input_audio_buffer.commit' });
     send({ type: 'response.create' });
@@ -211,7 +225,7 @@ async function start() {
     const acquired = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
     if (run !== epoch) { acquired.getTracks().forEach(t => t.stop()); return; }
     stream = acquired; mic(false);
-    context = new AudioContext(); await context.resume();
+    context = new AudioContext(); await context.resume(); cues = new AudioCues(context);
     if (run !== epoch) return;
     analyser = context.createAnalyser(); analyser.fftSize = 2048;
     context.createMediaStreamSource(stream).connect(analyser);

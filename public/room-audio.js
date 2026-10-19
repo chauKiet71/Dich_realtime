@@ -1,9 +1,12 @@
+import { AudioCues } from './audio-cues.js';
+
 export class RoomAudio {
   constructor(onFrame, onFailure) { this.onFrame = onFrame; this.onFailure = onFailure; this.sources = new Set(); this.next = 0; this.closed = false; }
   async open() {
     if (!navigator.mediaDevices?.getUserMedia || !window.AudioWorkletNode) throw new Error('Hãy dùng trình duyệt hỗ trợ micro qua HTTPS hoặc localhost.');
     this.context = new AudioContext();
     await this.context.resume();
+    this.cues = new AudioCues(this.context);
     // Preload once; a missing cue must never prevent joining or translating.
     this.cueReady = fetch('/turn-end.wav', { signal: AbortSignal.timeout(5000) })
       .then(response => { if (!response.ok) throw new Error('Cue unavailable'); return response.arrayBuffer(); })
@@ -42,6 +45,10 @@ export class RoomAudio {
       source.start();
     } catch { this.stopTurnEnd(); }
   }
+  playTranslationEnd(onComplete) {
+    this.cues ??= new AudioCues(this.context);
+    return this.cues.play('translation-end', onComplete);
+  }
   stopTurnEnd() {
     if (!this.cueSource) return;
     this.cueSource.onended = null;
@@ -71,7 +78,7 @@ export class RoomAudio {
   }
   drained() { return this.context?.state === 'running' && this.sources.size === 0 && this.context.currentTime >= this.next; }
   close() {
-    this.stopTurnEnd(); this.cueBuffer = null;
+    this.stopTurnEnd(); this.cues?.stop(); this.cueBuffer = null;
     this.flushDone?.();
     this.closed = true; this.capture(false);
     this.stream?.getTracks().forEach(t => { t.onended = null; t.stop(); });

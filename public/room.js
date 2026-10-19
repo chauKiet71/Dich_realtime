@@ -30,6 +30,8 @@ function renderState() {
   const labels = { waiting: 'Đang chờ người kia / 等待对方', connecting: 'Đang mở phiên dịch / 正在连接', ready: 'Sẵn sàng / 已准备好', listening: mine ? 'Đang nghe bạn nói / 正在聆听' : 'Người kia đang nói / 对方正在说话', translating: 'Đang dịch / 正在翻译', playing: 'Đang phát bản dịch / 正在播放', committing: 'Đang gửi câu nói…' };
   $('status').textContent = labels[phase] || 'Đang kết nối…';
   $('detail').textContent = phase === 'listening' && mine ? 'Micro đang mở · Nói để trả lời, dừng 2 giây để dịch · 请回答' : 'Micro đang tắt · Phát xong bản dịch sẽ tự chuyển lượt';
+  const step = ['translating', 'committing', 'connecting'].includes(phase) ? 'translate' : phase === 'playing' ? 'play' : 'listen';
+  document.querySelectorAll('[data-flow-step]').forEach(item => item.classList.toggle('current', item.dataset.flowStep === step));
   if (!['waiting', 'connecting'].includes(phase)) $('invite-panel').hidden = true;
 }
 function frame(buffer) {
@@ -57,7 +59,7 @@ async function commit(reason = 'manual') {
     await audio.flush(); if (run !== generation) return;
     phase = 'committing'; flushing = false; renderState();
     send({ type: speech ? 'commit' : 'cancel' });
-    if (speech && reason === 'silence') audio.playTurnEnd();
+    if (speech) audio.playTurnEnd();
     if (!speech) notice('Chưa nghe thấy giọng nói. Bấm nói và thử lại. / 未检测到语音。');
   } catch (e) { if (run === generation) finish(e.message); }
 }
@@ -121,7 +123,11 @@ async function enter(join) {
     clock = setInterval(() => {
       if (ws.readyState === WebSocket.CONNECTING && performance.now() - connectingAt > 15000) { finish('Kết nối quá lâu. Hãy thử lại.'); return; }
       if (phase === 'listening' && speaker === member?.memberId && speech && (performance.now() - started > 29000 || sentBytes >= 29 * 48000)) commit();
-      if (pendingEnd !== null && pendingEnd !== undefined && audio?.drained()) { send({ type: 'played', turnId: pendingEnd }); pendingEnd = null; }
+      if (pendingEnd !== null && pendingEnd !== undefined && audio?.drained()) {
+        const completedTurn = pendingEnd; pendingEnd = null; const playbackRun = generation;
+        $('status').textContent = 'Bản dịch đã phát xong / 翻译播放完毕';
+        audio.playTranslationEnd(() => { if (playbackRun === generation) send({ type: 'played', turnId: completedTurn }); });
+      }
       $('resume').hidden = !audio || audio.context.state === 'running';
     }, 100);
   } catch (e) {

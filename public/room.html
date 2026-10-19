@@ -10,6 +10,11 @@
   <header class="topbar"><a class="brand" href="/"><span class="brandmark">言</span><span>song ngữ.</span></a><a class="text-button" href="/">Dịch trên một thiết bị</a></header>
   <main>
     <section class="intro"><div><div class="eyebrow">HAI THIẾT BỊ · VIỆT ⇄ TRUNG</div><h1>Ở xa, vẫn<br><em>hiểu nhau.</em></h1><p>Tạo phòng, gửi liên kết và nói chuyện qua phiên dịch.<br>Mỗi người nói một lượt. Bản dịch được phát ở thiết bị của người kia.</p></div><div class="language-pair" aria-hidden="true"><span class="character">中<small>ZH</small></span><span class="pair-arrow">⇄</span><span class="character vietnamese">Vi<small>VI</small></span></div></section>
+    <ol class="flow-steps room-flow" aria-label="Ba bước phiên dịch cuộc gọi">
+      <li class="current" data-flow-step="listen"><span>1</span><div><strong>Nói / 说话</strong><small>Micro mở khi đến lượt</small></div></li>
+      <li data-flow-step="translate"><span>2</span><div><strong>Đợi bíp / 等待</strong><small>Câu đã được gửi để dịch</small></div></li>
+      <li data-flow-step="play"><span>3</span><div><strong>Nghe / 收听</strong><small>Bíp đôi rồi tự chuyển lượt</small></div></li>
+    </ol>
     <section class="workspace room-setup" id="setup" aria-label="Tạo hoặc tham gia phòng">
       <div id="create-form"><h2>Bắt đầu cuộc gọi mới</h2><label for="language">Tôi nói / 我的语言</label><select id="language"><option value="vi">Tiếng Việt</option><option value="zh">中文 · Tiếng Trung</option></select><p>Người được mời dùng ngôn ngữ còn lại. Phòng có tối đa hai người.</p><button id="create" class="start-button">Tạo phòng gọi</button></div>
       <div id="join-form" hidden><h2>Bạn được mời vào phòng · 加入通话</h2><p>Bấm tham gia, cho phép micro và âm thanh để bắt đầu. Ngôn ngữ của bạn sẽ đối ứng với người tạo phòng.</p><button id="join" class="start-button">Tham gia / 加入</button></div>
@@ -20,6 +25,7 @@
       <div class="panels"><article class="panel"><div class="panel-heading"><h2>Lời nói gốc / 原文</h2><span id="speaker" class="language-badge"></span></div><div id="source" class="transcript" aria-live="polite">Chờ cuộc trò chuyện bắt đầu…</div></article><article class="panel target-panel"><div class="panel-heading"><h2>Bản dịch / 翻译</h2></div><div id="translation" class="transcript" aria-live="polite">Giọng AI sẽ phát cho người nghe.</div></article></div>
       <div class="control-area"><div class="status-group"><span class="status-dot" id="status-dot"></span><div><strong id="status" role="status">Đang chờ người kia…</strong><span id="detail">Micro đang tắt.</span></div></div><button id="speak" class="start-button" disabled>Đến lượt tôi nói / 我要说话</button></div>
       <button id="resume" class="audio-button" hidden>Bật âm thanh / 开启声音</button>
+      <div class="cue-legend"><span><i class="cue-dot low"></i>Bíp ngắn: đã nhận câu</span><span><i class="cue-dot high"></i>Bíp đôi: đã phát xong bản dịch</span></div>
     </section>
     <div id="notice" class="notice" role="alert" hidden></div>
     <p class="room-note">Bấm nói để bắt đầu lượt đầu. Sau khi nghe hết bản dịch, micro của bạn tự mở để trả lời và tiếp tục chờ cho đến khi bạn nói. Sau khi nói, im lặng khoảng 2 giây để dịch, hoặc bấm “Dịch câu này”. / 翻译播放结束后，麦克风自动开启并等待您说话。</p>

@@ -11,7 +11,7 @@
     "dev": "node --watch --env-file-if-exists=.env.local server.js",
     "test": "node --test test/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage test/*.test.js",
-    "check": "node --check server.js && node --check lib/session.js && node --check lib/rooms.js && node --check public/core.js && node --check public/app.js && node --check public/room.js && node --check public/room-audio.js && node --check public/pcm-worklet.js",
+    "check": "node --check server.js && node --check lib/session.js && node --check lib/rooms.js && node --check public/core.js && node --check public/audio-cues.js && node --check public/app.js && node --check public/room.js && node --check public/room-audio.js && node --check public/pcm-worklet.js",
     "test:browser": "node scripts/room-browser-smoke.mjs"
   },
   "dependencies": {

@@ -10,6 +10,7 @@ const assets = new Map([
   ['/style.css', ['style.css', 'text/css']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/core.js', ['core.js', 'text/javascript']],
+  ['/audio-cues.js', ['audio-cues.js', 'text/javascript']],
   ['/room', ['room.html', 'text/html; charset=utf-8']],
   ['/room.js', ['room.js', 'text/javascript']],
   ['/room-audio.js', ['room-audio.js', 'text/javascript']],
