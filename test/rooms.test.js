@@ -48,4 +48,8 @@ test('room creation is bounded and room page/assets are served', async t => {
     assert.equal(response.status, 200);
     assert.ok(response.headers.get('content-security-policy').includes(`connect-src 'self' ${base.replace('http:', 'ws:')}`));
   }
+  const cue = await fetch(base + '/turn-end.wav');
+  assert.equal(cue.status, 200); assert.equal(cue.headers.get('content-type'), 'audio/wav');
+  const wav = Buffer.from(await cue.arrayBuffer());
+  assert.equal(wav.toString('ascii', 0, 4), 'RIFF');
 });

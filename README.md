@@ -61,6 +61,9 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
    hệ thống tự chọn ngôn ngữ đối ứng. Mật khẩu website vẫn áp dụng cho cả hai.
 4. Khi báo **Sẵn sàng**, bấm **Đến lượt tôi nói**. Ngừng khoảng 2 giây để dịch,
    hoặc bấm **Dịch câu này**. Người kia nghe bản dịch bằng ngôn ngữ của họ.
+   Khi tự chốt vì im lặng, máy người nói phát âm báo từ video đã cung cấp (khoảng
+   1,14 giây), sau khi tắt micro. Yêu cầu dịch gửi ngay, không chờ âm báo kết thúc.
+   Chốt thủ công hoặc hết giới hạn thời gian không phát âm báo này.
 5. Chờ bản dịch phát xong rồi người kia bấm nói để trả lời. Nếu trình duyệt chặn
    phát âm thanh, bấm **Bật âm thanh**; lượt nói vẫn bị khóa cho đến khi phát xong.
 

@@ -45,6 +45,9 @@ try {
     const createInput = AudioContext.prototype.createMediaStreamSource;
     AudioContext.prototype.createMediaStreamSource = function (stream) {
       const source = createInput.call(this, stream), gain = this.createGain();
+      const oscillator = this.createOscillator(), synthetic = this.createGain();
+      synthetic.gain.value = 0; oscillator.connect(synthetic); synthetic.connect(gain); oscillator.start();
+      window.syntheticGain = synthetic;
       source.connect(gain); window.micGain = gain; return gain;
     };
     const create = AudioContext.prototype.createBufferSource;
@@ -94,6 +97,7 @@ try {
   assert.equal(await a.evaluate(() => window.audioStarts), 1);
   assert.equal(await b.evaluate(() => window.audioStarts), 1);
   for (const [sender, listener] of [[a, b], [b, a]]) {
+    await sender.evaluate(() => { window.syntheticGain.gain.value = 0.1; });
     const beforeSender = await sender.evaluate(() => window.audioStarts);
     const beforeListener = await listener.evaluate(() => window.audioStarts);
     await sender.locator('#speak').click();
@@ -108,7 +112,7 @@ try {
     assert.ok(evidence.cue.at - silenceAt >= 1800 && evidence.cue.at - silenceAt < 3000);
     assert.ok(evidence.cue.duration > 1 && evidence.cue.duration < 1.3);
     assert.ok(Math.abs(evidence.commit - evidence.cue.at) < 200, 'commit does not wait for the cue to finish');
-    await sender.evaluate(() => { window.micGain.gain.value = 1; });
+    await sender.evaluate(() => { window.micGain.gain.value = 1; window.syntheticGain.gain.value = 0; });
   }
   assert.match(await b.locator('#translation').textContent(), /测试翻译/);
   await b.locator('#leave').click();

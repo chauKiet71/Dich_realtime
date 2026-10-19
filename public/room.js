@@ -39,9 +39,9 @@ function frame(buffer) {
   for (const sample of samples) sum += (sample / 32768) ** 2;
   const level = Math.sqrt(sum / samples.length);
   if (level >= gate.threshold) speech = true;
-  if (gate.sample(level, performance.now())) commit();
+  if (gate.sample(level, performance.now())) commit('silence');
 }
-async function commit() {
+async function commit(reason = 'manual') {
   if (flushing || phase !== 'listening' || speaker !== member?.memberId) return;
   flushing = true; $('speak').disabled = true;
   const run = generation;
@@ -50,6 +50,7 @@ async function commit() {
     await audio.flush(); if (run !== generation) return;
     phase = 'committing'; flushing = false; renderState();
     send({ type: speech ? 'commit' : 'cancel' });
+    if (speech && reason === 'silence') audio.playTurnEnd();
     if (!speech) notice('Chưa nghe thấy giọng nói. Bấm nói và thử lại. / 未检测到语音。');
   } catch (e) { if (run === generation) finish(e.message); }
 }

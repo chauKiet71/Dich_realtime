@@ -15,6 +15,7 @@ const assets = new Map([
   ['/room-audio.js', ['room-audio.js', 'text/javascript']],
   ['/pcm-worklet.js', ['pcm-worklet.js', 'text/javascript']],
   ['/room.css', ['room.css', 'text/css']],
+  ['/turn-end.wav', ['turn-end.wav', 'audio/wav']],
 ]);
 const publicDir = new URL('./public/', import.meta.url);
 const headers = {
