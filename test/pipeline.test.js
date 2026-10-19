@@ -113,14 +113,14 @@ test('WAV codec validates format and removes headers', () => {
   const wav = pcmToWav(pcm); wav.writeUInt32LE(48000,24);
   assert.throws(() => wavToPcm(wav));
 });
-test('OpenRouter uses isolated credentials, DeepSeek Flash and non-thinking JSON translation',async()=>{
+test('OpenRouter uses isolated credentials, DeepSeek V3.2 and non-thinking JSON translation',async()=>{
   const {pipeline,calls}=fixture('vi','zh',{env:{...env,TRANSLATION_PROVIDER:'openrouter',OPENROUTER_API_KEY:'test-openrouter'}});
   await pipeline.translate({pcm,pair:'vi-zh'});
   assert.equal(pipeline.provider,'OpenRouter');
   assert.equal(calls[1].url,'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(calls[1].options.headers.Authorization,'Bearer test-openrouter');
   const body=JSON.parse(calls[1].options.body);
-  assert.equal(body.model,'deepseek/deepseek-v4.1-flash');
+  assert.equal(body.model,'deepseek/deepseek-v3.2');
   assert.deepEqual(body.reasoning,{enabled:false});
   assert.deepEqual(body.response_format,{type:'json_object'});
 });

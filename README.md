@@ -1,5 +1,16 @@
 # Song Ngữ — phiên dịch Việt ↔ Trung và Việt ↔ Anh
 
+## Nhà cung cấp dịch hiện tại: OpenRouter / DeepSeek
+
+Chọn `TRANSLATION_PROVIDER=openrouter` để dùng OpenRouter thay 9Router.
+Model: `OPENROUTER_TRANSLATE_MODEL=deepseek/deepseek-v3.2`.
+Local đọc `OPENROUTER_API_KEY_FILE`, production dùng `OPENROUTER_API_KEY`.
+Endpoint cố định `https://openrouter.ai/api/v1`; không dùng key 9Router dự phòng.
+DeepSeek chuẩn hóa nhẹ + dịch một lần, JSON output, `reasoning.enabled=false`.
+OpenAI nhận dạng, Google WaveNet đọc và cơ chế thử lại 429 không thay đổi.
+Văn bản được xử lý bởi OpenRouter và nhà cung cấp DeepSeek phía sau nó.
+Các mô tả 9Router/Gemini phía dưới là cấu hình cũ; chỉ dùng khi chọn provider=9router.
+
 ## Luồng Gemini Flash + Google WaveNet (hybrid)
 
 Đặt `TRANSLATION_ENGINE=hybrid` rồi khởi động lại server. Local đã cấu hình
