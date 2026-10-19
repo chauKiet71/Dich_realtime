@@ -16,7 +16,7 @@ const selectedPair = () => pairs[$('language-pair').value];
 function refreshPair() {
   const pair = selectedPair();
   document.title = `Song Ngữ · ${pair.label}`;
-  $('intro-description').textContent = `Nói ${pair.spoken}. Ngừng khoảng 2 giây, bản dịch sẽ được đọc thành tiếng.`;
+  $('intro-description').textContent = `Nói ${pair.spoken}. Ngừng khoảng 700 ms, bản dịch sẽ được đọc thành tiếng.`;
   $('pair-symbol').textContent = pair.symbol;
   $('pair-code').textContent = pair.code;
   $('pair-illustration').setAttribute('aria-label', pair.label);
@@ -208,7 +208,7 @@ function tick() {
   if (remaining !== null && level < gate.threshold) {
     status('Đang chờ hết câu', `Còn ${(remaining / 1000).toFixed(1)} giây · Nói tiếp để tiếp tục câu`);
   } else if (remaining !== null) {
-    status('Đang nghe bạn nói', 'Tự động dịch sau 2 giây im lặng');
+    status('Đang nghe bạn nói', 'Tự động dịch sau 700 ms im lặng');
   }
   // Avoid accumulating an unlimited silent audio buffer.
   if (remaining === null && now - lastClear > 10000) { send({ type: 'input_audio_buffer.clear' }); lastClear = now; }

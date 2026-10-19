@@ -1,5 +1,5 @@
 export class SilenceGate {
-  constructor({ silenceMs = 2000, threshold = 0.018 } = {}) {
+  constructor({ silenceMs = 700, threshold = 0.018 } = {}) {
     this.silenceMs = silenceMs;
     this.threshold = threshold;
     this.reset();

@@ -11,7 +11,7 @@ async function server(t, options = {}) {
   const base = `http://127.0.0.1:${app.address().port}`;
   return { base, post: (body = 'v=0\r\nm=audio 9 RTP/AVP 0', extra = {}) => fetch(`${base}/api/session`, { method: 'POST', body, headers: { 'Content-Type': 'application/sdp', 'Origin': base, 'X-Translation-Client': '1', ...extra } }) };
 }
-test('manual turn detection keeps the 2s boundary in the browser, enables both input languages', () => {
+test('manual turn detection keeps the silence boundary in the browser, enables both input languages', () => {
   const config = sessionConfig({});
   assert.equal(config.audio.input.turn_detection, null);
   assert.deepEqual(config.audio.input.transcription.languages, ['zh', 'vi']);
