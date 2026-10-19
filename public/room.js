@@ -8,11 +8,12 @@ if (location.hash) history.replaceState(null, '', location.pathname);
 $('join-form').hidden = !invited; $('create-form').hidden = invited;
 let audio, socket, member, phase = 'idle', speaker, turnId, generation = 0, clock, pendingEnd;
 let started = 0, speech = false, sentBytes = 0, gate = new SilenceGate(), busy = false, flushing = false;
+let preRoll = [];
 const entries = new Map();
 function notice(text = '') { $('notice').textContent = text; $('notice').hidden = !text; }
 function send(msg) { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg)); }
 function finish(message = '') {
-  generation++; clearInterval(clock); phase = 'idle'; pendingEnd = null; flushing = false;
+  generation++; clearInterval(clock); phase = 'idle'; pendingEnd = null; flushing = false; preRoll = [];
   audio?.close(); audio = null;
   if (socket) { socket.onmessage = socket.onclose = socket.onerror = null; socket.close(); socket = null; }
   member = null; busy = false; $('call').hidden = true; $('setup').hidden = false;
@@ -34,11 +35,17 @@ function renderState() {
 function frame(buffer) {
   if (phase !== 'listening' || speaker !== member?.memberId || socket?.readyState !== WebSocket.OPEN) return;
   if (socket.bufferedAmount > 192000) { finish('Mạng gửi âm thanh quá chậm. Hãy tạo phòng mới.'); return; }
-  socket.send(buffer); sentBytes += buffer.byteLength;
   const samples = new Int16Array(buffer); let sum = 0;
   for (const sample of samples) sum += (sample / 32768) ** 2;
   const level = Math.sqrt(sum / samples.length);
-  if (level >= gate.threshold) speech = true;
+  if (!speech) {
+    // Keep only 300 ms locally to preserve the start of a word without uploading silence.
+    preRoll.push(buffer); if (preRoll.length > 3) preRoll.shift();
+    if (level < gate.threshold) return;
+    speech = true; started = performance.now();
+    for (const frame of preRoll) { socket.send(frame); sentBytes += frame.byteLength; }
+    preRoll = [];
+  } else { socket.send(buffer); sentBytes += buffer.byteLength; }
   if (gate.sample(level, performance.now())) commit('silence');
 }
 async function commit(reason = 'manual') {
@@ -77,7 +84,7 @@ function handle(event) {
   const msg = JSON.parse(event.data);
   if (msg.type === 'state') {
     phase = msg.phase; speaker = msg.speaker; turnId = msg.turnId;
-    if (phase === 'listening' && speaker === member.memberId) { started = performance.now(); gate.reset(); speech = false; sentBytes = 0; }
+    if (phase === 'listening' && speaker === member.memberId) { started = 0; gate.reset(); speech = false; sentBytes = 0; preRoll = []; }
     renderState();
   } else if (msg.type === 'transcript') transcript(msg);
   else if (msg.type === 'audio-end') pendingEnd = msg.turnId;
@@ -113,7 +120,7 @@ async function enter(join) {
     const connectingAt = performance.now();
     clock = setInterval(() => {
       if (ws.readyState === WebSocket.CONNECTING && performance.now() - connectingAt > 15000) { finish('Kết nối quá lâu. Hãy thử lại.'); return; }
-      if (phase === 'listening' && speaker === member?.memberId && (performance.now() - started > 29000 || sentBytes >= 29 * 48000 || (!speech && performance.now() - started > 8000))) commit();
+      if (phase === 'listening' && speaker === member?.memberId && speech && (performance.now() - started > 29000 || sentBytes >= 29 * 48000)) commit();
       if (pendingEnd !== null && pendingEnd !== undefined && audio?.drained()) { send({ type: 'played', turnId: pendingEnd }); pendingEnd = null; }
       $('resume').hidden = !audio || audio.context.state === 'running';
     }, 100);

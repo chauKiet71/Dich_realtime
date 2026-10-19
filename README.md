@@ -67,8 +67,9 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
 5. Sau khi nghe hết bản dịch, micro người nghe **tự mở để trả lời**. Không cần
    bấm nói ở mỗi lượt; máy chủ chuyển quyền nói sau xác nhận phát xong từ người nghe.
    Nếu trình duyệt chặn phát âm thanh, bấm **Bật âm thanh**; micro vẫn tắt đến khi
-   phát xong. Nếu chưa nói trong khoảng 8 giây, micro tắt và phòng về trạng thái chờ;
-   bấm nói để tiếp tục. Im lặng không tự tạo chuỗi lượt dịch.
+   phát xong. Micro tiếp tục mở khi chưa có giọng nói, không có mốc chờ 8 giây.
+   Sau khi nói rồi im lặng 2 giây, ứng dụng chốt câu và dịch. Im lặng trước câu
+   không được gửi đến OpenAI; chỉ giữ 300 ms đệm cục bộ để tránh mất đầu từ.
 
 Phòng hỗ trợ hai người, không phải hội thoại nói chồng hay truyền giọng gốc.
 Hai bên đều thấy văn bản gốc và bản dịch; mỗi bên chỉ nghe giọng AI dịch lời người kia.
@@ -88,7 +89,8 @@ Chưa có tài khoản cá nhân, nhóm lâu dài, video hoặc đổ chuông.
 - Liên kết mời có token ngẫu nhiên trong fragment (`#`), không gửi token qua URL
   HTTP. Token thành viên riêng chỉ giữ trong RAM của tab, không dùng localStorage.
   Không lưu bản ghi vào đĩa; nội dung vẫn được gửi đến OpenAI để xử lý.
-- Phòng tồn tại tối đa 15 phút, chờ tham gia/không hoạt động tối đa 2 phút;
+- Phòng tồn tại tối đa 15 phút, chờ tham gia hoặc trạng thái sẵn sàng tối đa 2 phút;
+  khi đã đến lượt và micro đang mở thì chờ giọng nói đến hết thời hạn phòng.
   câu nói tối đa 30 giây. Mất kết nối, rời phòng hoặc server restart sẽ đóng phòng.
   Khi đang gọi, chuyển tab/ẩn trang cũng đóng phòng. Khi đang chờ người kia,
   có thể chuyển ứng dụng để gửi liên kết (micro đang tắt).

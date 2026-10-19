@@ -122,6 +122,12 @@ try {
   assert.equal(await a.evaluate(() => window.liveTracks.every(t => t.enabled)), true);
   assert.equal(providers[0].bytes, inputBytes, 'silent waiting does not stream unbounded audio to provider');
   assert.equal(await a.evaluate(() => window.audioStarts), beforeIdle, 'no cue or translation for an unanswered automatic turn');
+  await a.evaluate(() => { window.micGain.gain.value = 1; window.syntheticGain.gain.value = 0.1; });
+  await a.waitForTimeout(800);
+  await a.evaluate(() => { window.micGain.gain.value = 0; });
+  await b.waitForFunction(() => document.querySelector('#status').textContent.includes('Đang nghe'));
+  assert.ok(providers[0].bytes > inputBytes, 'speech after a long wait is still translated');
+  assert.equal(await a.evaluate(() => window.liveTracks.every(t => !t.enabled)), true);
   assert.match(await b.locator('#translation').textContent(), /测试翻译/);
   await b.locator('#leave').click();
   await a.locator('#setup').waitFor({ state: 'visible' });
