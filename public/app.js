@@ -1,8 +1,12 @@
 import { SilenceGate, TranscriptStore } from './core.js';
 import { AudioCues } from './audio-cues.js';
+import { RoomAudio } from './room-audio.js';
+import { Utterance } from './utterance.js';
 
 const $ = id => document.getElementById(id);
 const gate = new SilenceGate();
+const utterance = new Utterance();
+let hybridAudio, flushing = false;
 let sourceStore = new TranscriptStore();
 let phase = 'idle', epoch = 0, peer, channel, stream, context, cues, analyser, sampleBuffer, timer, watchdog, aborter;
 let currentTurn, pendingTurn, responseTurn, turns = [], responseTurns = new Map(), inputTurns = new Map();
@@ -31,7 +35,7 @@ const notices = {
 function notice(message = '') { $('notice').textContent = message; $('notice').hidden = !message; }
 function status(title, detail) { $('status').textContent = title; $('status-detail').textContent = detail; }
 function send(message) { if (channel?.readyState === 'open') channel.send(JSON.stringify(message)); }
-function mic(enabled) { stream?.getAudioTracks().forEach(track => { track.enabled = enabled; }); }
+function mic(enabled) { if (hybridAudio) hybridAudio.capture(enabled); else stream?.getAudioTracks().forEach(track => { track.enabled = enabled; }); }
 function setPhase(value) {
   phase = value;
   const active = !['idle', 'connecting'].includes(value);
@@ -56,6 +60,7 @@ function fail(message) { stop(); notice(message); }
 function stop() {
   epoch++;
   clearInterval(timer); clearTimer(); aborter?.abort();
+  hybridAudio?.close(); hybridAudio=undefined; flushing=false; utterance.reset();
   // Remove handlers before closing so expected teardown cannot report a disconnect.
   if (channel) { channel.onmessage = channel.onclose = channel.onopen = channel.onerror = null; channel.close(); }
   if (peer) { peer.onconnectionstatechange = peer.ontrack = null; peer.close(); }
@@ -76,6 +81,7 @@ function resumeListening() {
   responseTurn = pendingTurn = currentTurn = undefined;
   audioStarted = completionPending = false;
   gate.reset(); lastClear = performance.now();
+  utterance.reset();
   send({ type: 'input_audio_buffer.clear' });
   mic(true); setPhase('listening');
   status('Đang lắng nghe', `Nói ${selectedPair().spoken}`);
@@ -214,6 +220,57 @@ function tick() {
   if (remaining === null && now - lastClear > 10000) { send({ type: 'input_audio_buffer.clear' }); lastClear = now; }
 }
 
+async function commitHybrid(run) {
+  if (flushing || phase!=='listening') return;
+  flushing=true; setPhase('waiting');
+  pendingTurn=responseTurn=newTurn(); pendingTurn.committedAt=performance.now();
+  status('Đang dịch…','Nhận dạng → Gemini Flash → Google WaveNet');
+  $('target-text').textContent='Đang chuyển ngữ…';
+  watch(95000,'Dịch vụ phản hồi quá lâu. Hãy thử lại.');
+  try {
+    await hybridAudio.flush(); if (run!==epoch) return;
+    flushing=false; hybridAudio.playTurnEnd();
+    const response=await fetch('/api/translate-audio',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Translation-Client':'1','X-Language-Pair':$('language-pair').value},body:utterance.take(),signal:aborter.signal});
+    const result=await response.json(); if (run!==epoch) return;
+    if (!response.ok) throw new Error(result.error || 'Không hoàn tất lượt dịch.');
+    responseTurn.source=result.source; responseTurn.translation=result.translation;
+    $('source-text').textContent=result.source; $('target-text').textContent=result.translation;
+    $('source-language').textContent=result.sourceLanguage.toUpperCase();
+    $('target-language').textContent=result.targetLanguage.toUpperCase();
+    $('target-hint').textContent=`Bắt đầu phát sau ${((performance.now()-responseTurn.committedAt)/1000).toFixed(1)} giây xử lý`;
+    renderHistory();
+    const raw=atob(result.audio); const pcm=Uint8Array.from(raw,c=>c.charCodeAt(0));
+    hybridAudio.play(pcm.buffer); setPhase('playing');
+    status('Đang đọc bản dịch','Google WaveNet · Micro tạm tắt');
+    watch(120000,'Phát âm thanh quá lâu. Hãy thử lại.');
+  } catch(e) { if (run===epoch) fail(e.message || 'Không hoàn tất lượt dịch.'); }
+}
+async function startHybrid(run) {
+  const media=hybridAudio=new RoomAudio(buffer=>{
+    if (run!==epoch || (!flushing && phase!=='listening')) return;
+    try {
+      utterance.gate.threshold=gate.threshold;
+      if (utterance.push(buffer,performance.now(),flushing)) void commitHybrid(run);
+      else if (phase==='listening' && utterance.speech) status('Đang nghe bạn nói','Tự động dịch sau 700 ms im lặng');
+    } catch(e) { if (run===epoch) fail(e.message); }
+  },message=>{ if (run===epoch) fail(message); });
+  await media.open(); if (run!==epoch) return;
+  context=media.context; cues=media.cues;
+  await cues.loadReadyAudio(); if (run!==epoch) return;
+  sessionStarted=performance.now(); clearTimer();
+  status('Đang lắng nghe','Tiếng bíp báo sẵn sàng · Nói sau tiếng bíp');
+  cues.play('connection-ready',()=>{
+    if (run!==epoch) return;
+    resumeListening();
+    timer=setInterval(()=>{
+      if (run!==epoch) return;
+      if (performance.now()-sessionStarted>15*60000) { fail('Đã hết phiên 15 phút. Bấm bắt đầu để mở phiên mới.'); return; }
+      if (phase==='playing' && media.drained()) finishTranslation();
+      $('resume-audio').hidden=media.context.state==='running';
+    },100);
+  });
+}
+
 async function start() {
   const run = ++epoch;
   notice(); setPhase('connecting'); status('Đang kết nối…', 'Cho phép micro khi trình duyệt yêu cầu');
@@ -226,6 +283,7 @@ async function start() {
     const health = await fetch('/api/health', { signal: aborter.signal }).then(r => r.json());
     if (run !== epoch) return;
     if (!health.configured) throw new Error('Chưa cấu hình được API key trên máy chủ.');
+    if (health.engine==='hybrid') { await startHybrid(run); return; }
     const acquired = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
     if (run !== epoch) { acquired.getTracks().forEach(t => t.stop()); return; }
     stream = acquired; mic(false);
@@ -268,7 +326,7 @@ async function start() {
   }
 }
 $('start').addEventListener('click', () => phase === 'idle' ? start() : stop());
-$('resume-audio').addEventListener('click', async () => { try { await audio.play(); $('resume-audio').hidden = true; } catch { notice('Trình duyệt chưa cho phép phát âm thanh. Kiểm tra thiết bị đầu ra.'); } });
+$('resume-audio').addEventListener('click', async () => { try { if (hybridAudio) await hybridAudio.resume(); else await audio.play(); $('resume-audio').hidden = true; } catch { notice('Trình duyệt chưa cho phép phát âm thanh. Kiểm tra thiết bị đầu ra.'); } });
 $('clear').addEventListener('click', () => {
   if (phase !== 'idle') return;
   turns = []; responseTurns.clear(); inputTurns.clear(); sourceStore = new TranscriptStore();
