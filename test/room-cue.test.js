@@ -51,3 +51,11 @@ test('translation completion uses the distinct cue and waits for its ending', ()
   for (const group of room.cues.groups) group.nodes.forEach(node => node.onended());
   assert.equal(completed, 1);
 });
+
+test('speech completion beeps even when the legacy WAV has not loaded', () => {
+  const { room, events } = audio();
+  room.cueBuffer = null;
+
+  assert.equal(room.playTurnEnd(), true);
+  assert.deepEqual(events.filter(event => event === 'tone-start'), ['tone-start']);
+});
