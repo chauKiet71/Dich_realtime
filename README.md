@@ -5,16 +5,18 @@ Dừng phiên trước khi đổi chế độ; lần bắt đầu tiếp theo t�
 Ứng dụng tự chọn chiều dịch trong cặp đã chọn và giữ thời gian chốt câu 2 giây im lặng.
 Trong chế độ Việt ↔ Anh, nhãn hiển thị cặp ngôn ngữ thay vì đoán tiếng nói dựa trên dấu tiếng Việt.
 
-Website phiên dịch giọng nói cho hai người nói luân phiên trên một thiết bị.
+Website phiên dịch giọng nói cho hai người nói luân phiên trên một thiết bị,
+hoặc **phòng gọi Việt–Trung giữa hai thiết bị** tại `/room`.
 Nhận diện Mandarin hoặc tiếng Việt khi đang nói; chốt lượt sau khoảng 2 giây im lặng;
 phát giọng nói bản dịch và mở lại micro khi phát xong.
 
 ## Chạy trên máy này
 
-Yêu cầu Node.js 22 trở lên. Không cần cài thư viện ngoài.
+Yêu cầu Node.js 22 trở lên. Chạy `npm ci` lần đầu để cài thư viện WebSocket `ws`.
 
 ```powershell
 cd D:\Code\Dich_realtime
+npm ci
 npm start
 ```
 
@@ -50,6 +52,65 @@ Khởi động lại máy chủ sau khi thay cấu hình model hoặc cổng.
 - Văn bản được ghép theo ID để tránh sai thứ tự do sự kiện nhận diện đến muộn;
   lịch sử chỉ trong bộ nhớ tab. Giọng nói phát ra là giọng AI.
 - Giao diện HTML/CSS/JS thuần, Node HTTP server, không có bước build hoặc DB.
+
+## Phòng gọi giữa hai thiết bị (bản thử nghiệm)
+
+1. Mở `/room` (hoặc chọn **Gọi giữa hai thiết bị** trên trang chủ).
+2. Chọn ngôn ngữ mình nói: Việt hoặc Trung, bấm **Tạo phòng gọi**, cấp quyền micro.
+3. Sao chép liên kết mời cho người kia. Họ mở liên kết và bấm **Tham gia**;
+   hệ thống tự chọn ngôn ngữ đối ứng. Mật khẩu website vẫn áp dụng cho cả hai.
+4. Khi báo **Sẵn sàng**, bấm **Đến lượt tôi nói**. Ngừng khoảng 2 giây để dịch,
+   hoặc bấm **Dịch câu này**. Người kia nghe bản dịch bằng ngôn ngữ của họ.
+5. Chờ bản dịch phát xong rồi người kia bấm nói để trả lời. Nếu trình duyệt chặn
+   phát âm thanh, bấm **Bật âm thanh**; lượt nói vẫn bị khóa cho đến khi phát xong.
+
+Phòng hỗ trợ hai người, không phải hội thoại nói chồng hay truyền giọng gốc.
+Hai bên đều thấy văn bản gốc và bản dịch; mỗi bên chỉ nghe giọng AI dịch lời người kia.
+Chưa có tài khoản cá nhân, nhóm lâu dài, video hoặc đổ chuông.
+
+### Kết nối và vận hành
+
+- Chế độ một thiết bị vẫn dùng WebRTC trực tiếp với OpenAI. Phòng hai thiết bị
+  dùng Web Audio (PCM16 mono 24 kHz) → WebSocket cùng origin → Node.js → OpenAI
+  Realtime WebSocket. Âm thanh dịch quay về qua máy chủ đến đúng người nghe.
+  Không cần LiveKit, STUN hay TURN. Đổi lại, máy chủ chịu băng thông âm thanh
+  (đầu vào khoảng 48 KB/s khi nói, chưa tính overhead; kết nối OpenAI dùng base64).
+- Mỗi phòng mở **hai phiên OpenAI** khi cả hai người đã kết nối. Cấu hình hướng
+  dịch do server quyết định, API key không xuống trình duyệt. Quota 6 phiên/phút,
+  60 phiên/giờ được dùng chung với chế độ một thiết bị. Quota tạo phòng riêng:
+  6/phút, 60/giờ, tối đa 10 phòng trong RAM; không phải hạn mức chi phí cứng.
+- Liên kết mời có token ngẫu nhiên trong fragment (`#`), không gửi token qua URL
+  HTTP. Token thành viên riêng chỉ giữ trong RAM của tab, không dùng localStorage.
+  Không lưu bản ghi vào đĩa; nội dung vẫn được gửi đến OpenAI để xử lý.
+- Phòng tồn tại tối đa 15 phút, chờ tham gia/không hoạt động tối đa 2 phút;
+  câu nói tối đa 30 giây. Mất kết nối, rời phòng hoặc server restart sẽ đóng phòng.
+  Khi đang gọi, chuyển tab/ẩn trang cũng đóng phòng. Khi đang chờ người kia,
+  có thể chuyển ứng dụng để gửi liên kết (micro đang tắt).
+- Chạy **một replica**: phòng và quota ở RAM. Muốn scale cần kho trạng thái và
+  cơ chế định tuyến kết nối dùng chung. Reverse proxy phải cho phép WebSocket
+  upgrade và timeout phù hợp. Railway dùng HTTPS/WSS cùng tên miền sẵn có.
+- `localhost` chỉ truy cập từ chính máy đang chạy. Để thử hai điện thoại hoặc
+  hai mạng khác nhau, triển khai bản mới lên tên miền HTTPS có cấu hình production;
+  gửi liên kết localhost cho điện thoại sẽ không hoạt động.
+- Docker dùng `npm ci --omit=dev --ignore-scripts` với lockfile. Không đưa `.env*`
+  hoặc `artifacts/` vào bản triển khai. Thay đổi này chưa tự triển khai lên Railway.
+
+### Kiểm chứng phòng gọi
+
+`npm test` kiểm thử HTTP, WebSocket và điều phối lượt với provider giả lập,
+không gọi API có phí. `npm run test:browser` cần Playwright được cài sẵn và Chrome;
+có thể đặt `PLAYWRIGHT_MODULE` thành file URL của module Playwright nếu dùng runtime
+ngoài dự án. Bài kiểm tra dùng hai browser context, micro giả và provider giả,
+bao gồm phát PCM, chặn playback, mời, rời phòng và bố cục điện thoại.
+
+Kiểm thử OpenAI thật là lệnh **có phí**, tách khỏi `npm test`:
+
+```powershell
+node --env-file-if-exists=.env.local scripts/room-provider-smoke.mjs --confirm-paid artifacts/sample-vi.wav artifacts/sample-zh.wav
+```
+
+Hai file mẫu không nằm trong Git; cần WAV mono PCM16 24 kHz, dưới 25 giây.
+Xem `docs/rooms-verification.md` để biết kết quả thực tế và giới hạn kiểm chứng.
 
 Khoảng 2 giây là thời gian chờ im lặng, không phải cam kết tổng độ trễ. Mạng,
 model, độ dài câu và tiếng ồn ảnh hưởng kết quả. Trong phép thử ngày 19/10/2026

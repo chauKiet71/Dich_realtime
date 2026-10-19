@@ -37,7 +37,7 @@ try {
     AudioContext.prototype.createBufferSource = function () {
       window.roomContext = this;
       const source = create.call(this), start = source.start.bind(source);
-      source.start = (...args) => { window.audioStarts++; return start(...args); }; return source;
+      source.start = (...args) => { window.audioStarts++; if (window.blockPlayback) { window.blockPlayback = false; void this.suspend(); } return start(...args); }; return source;
     };
     const get = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = async (...args) => { const stream = await get(...args); window.liveTracks.push(...stream.getTracks()); return stream; };
@@ -60,12 +60,19 @@ try {
   assert.equal(await a.evaluate(() => window.liveTracks.every(t => !t.enabled)), true);
   await a.screenshot({ path: 'artifacts/room-mobile.png', fullPage: true });
   for (const [sender, listener, index] of [[a, b, 0], [b, a, 1]]) {
+    if (index === 0) await listener.evaluate(() => { window.blockPlayback = true; });
     await sender.locator('#speak').click();
     await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Đang nghe'));
     await sender.waitForTimeout(800);
     assert.equal(await listener.locator('#speak').isDisabled(), true);
     await sender.locator('#speak').click();
     await listener.waitForFunction(() => window.audioStarts >= 1);
+    if (index === 0) {
+      await listener.locator('#resume').waitFor({ state: 'visible' });
+      await listener.waitForTimeout(1200);
+      assert.equal(await sender.locator('#speak').isDisabled(), true);
+      await listener.locator('#resume').click();
+    }
     await sender.waitForFunction(() => document.querySelector('#status').textContent.includes('Sẵn sàng'));
     assert.ok(providers[index].bytes >= 9600);
     assert.equal(await sender.evaluate(() => window.liveTracks.every(t => !t.enabled)), true);
