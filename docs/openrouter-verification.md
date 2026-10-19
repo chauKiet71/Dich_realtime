@@ -35,6 +35,15 @@ Local `.env.local` selects OpenRouter, with a path to the user's file, not a
 copied key. Railway receives the key through stdin into OPENROUTER_API_KEY.
 Source upload excludes `.env*` and artifacts. Old key is not deleted/revoked.
 
+Railway deployment `5ff26892-b924-48da-b256-cda6fecd7e9f`: SUCCESS, source
+`41f83d4`. Authenticated health confirms provider=OpenRouter and
+model=deepseek/deepseek-v3.2. Unauthorized health remains 401; pages/assets 200.
+Real production full-pipeline smoke passed all four directions with explicit
+source/target-language assertions: vi→zh 5002ms, zh→vi 9216ms, en→vi 6303ms,
+vi→en 4267ms. Each returned WaveNet audio. These are samples, not an SLA.
+Local server on port 3002 restarted and health confirms the same configuration.
+No GitHub push was performed. No physical phone/microphone test in this release.
+
 References:
 - https://openrouter.ai/deepseek/deepseek-v3.2
 - https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request
