@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { loadKey, sessionConfig } from './lib/session.js';
 import { RoomHub } from './lib/rooms.js';
+import { TranslationPipeline } from './lib/pipeline.js';
 
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -34,7 +35,10 @@ function send(res, status, body, type = 'application/json', extraHeaders = {}) {
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
-export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = () => loadKey(env), providerFactory, now } = {}) {
+export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = () => loadKey(env), providerFactory, now, pipeline } = {}) {
+  const hybrid = env.TRANSLATION_ENGINE === 'hybrid';
+  pipeline ??= new TranslationPipeline({ env, fetchImpl, keyLoader, now });
+  const checkKeys = () => hybrid ? pipeline.credentials() : keyLoader();
   let attempts = [];
   let hourlyAttempts = [];
   const production = env.NODE_ENV === 'production';
@@ -62,13 +66,13 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
     if (attempts.length + count > 6 || hourlyAttempts.length + count > 60) return false;
     attempts.push(...Array(count).fill(time)); hourlyAttempts.push(...Array(count).fill(time)); return true;
   }
-  const rooms = new RoomHub({ env, keyLoader, reserveSessions, providerFactory, now });
+  const rooms = new RoomHub({ env, keyLoader, reserveSessions, providerFactory, now, pipeline: hybrid ? pipeline : null });
   const server = http.createServer(async (req, res) => {
     try {
       // Railway readiness probes use an internal Host header, without user credentials.
       if (req.method === 'GET' && req.url === '/healthz') {
         let ready = !production || Boolean(accessPassword && configuredOrigin?.protocol === 'https:');
-        try { await keyLoader(); } catch { ready = false; }
+        try { await checkKeys(); } catch { ready = false; }
         return send(res, ready ? 200 : 503, { ready });
       }
       const host = req.headers.host || '';
@@ -100,8 +104,29 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
       }
       if (req.method === 'GET' && path === '/api/health') {
         let configured = false;
-        try { await keyLoader(); configured = true; } catch { /* No secret in errors. */ }
-        return send(res, 200, { configured, model: sessionConfig(env).model });
+        try { await checkKeys(); configured = true; } catch { /* No secret in errors. */ }
+        return send(res, 200, { configured, model: hybrid ? pipeline.model : sessionConfig(env).model, engine: hybrid ? 'hybrid' : 'realtime' });
+      }
+      if (req.method === 'POST' && path === '/api/translate-audio' && hybrid) {
+        if (req.headers.origin !== (production ? configuredOrigin.origin : `http://${host}`) || req.headers['x-translation-client'] !== '1') return send(res,403,{error:'Yêu cầu không hợp lệ.'});
+        if (req.headers['content-type'] !== 'application/octet-stream') return send(res,415,{error:'Định dạng âm thanh không hợp lệ.'});
+        const pair = req.headers['x-language-pair'];
+        if (!['vi-zh','vi-en'].includes(pair)) return send(res,400,{error:'Cặp ngôn ngữ không hợp lệ.'});
+        const controller = new AbortController();
+        const cancel = () => controller.abort();
+        res.on('close',cancel);
+        req.setTimeout(15000, () => req.destroy());
+        try {
+          let size=0; const chunks=[];
+          for await (const chunk of req) { size+=chunk.length; if (size>30*48000) return send(res,413,{error:'Câu nói vượt quá 30 giây.'}); chunks.push(chunk); }
+          req.setTimeout(0);
+          if (size<9600 || size%2) return send(res,400,{error:'Âm thanh quá ngắn hoặc không hợp lệ.'});
+          const result = await pipeline.translate({pcm:Buffer.concat(chunks),pair,signal:controller.signal});
+          if (!controller.signal.aborted) return send(res,200,{...result,audio:result.audio.toString('base64')});
+        } catch (e) {
+          if (!controller.signal.aborted) return send(res,[400,429,502,503].includes(e.status)?e.status:502,{error:e.status?e.message:'Không hoàn tất lượt dịch. Hãy thử lại.'});
+        } finally { res.off('close',cancel); }
+        return;
       }
       if (req.method === 'POST' && path === '/api/session') {
         if (req.headers.origin !== (production ? configuredOrigin.origin : `http://${host}`) || req.headers['x-translation-client'] !== '1') {
