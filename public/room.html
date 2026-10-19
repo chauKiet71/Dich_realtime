@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#234e43"><title>Phòng gọi · Song Ngữ</title>
+  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/room.css">
+  <script type="module" src="/room.js"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/"><span class="brandmark">言</span><span>song ngữ.</span></a><a class="text-button" href="/">Dịch trên một thiết bị</a></header>
+  <main>
+    <section class="intro"><div><div class="eyebrow">HAI THIẾT BỊ · VIỆT ⇄ TRUNG</div><h1>Ở xa, vẫn<br><em>hiểu nhau.</em></h1><p>Tạo phòng, gửi liên kết và nói chuyện qua phiên dịch.<br>Mỗi người nói một lượt. Bản dịch được phát ở thiết bị của người kia.</p></div><div class="language-pair" aria-hidden="true"><span class="character">中<small>ZH</small></span><span class="pair-arrow">⇄</span><span class="character vietnamese">Vi<small>VI</small></span></div></section>
+    <section class="workspace room-setup" id="setup" aria-label="Tạo hoặc tham gia phòng">
+      <div id="create-form"><h2>Bắt đầu cuộc gọi mới</h2><label for="language">Tôi nói / 我的语言</label><select id="language"><option value="vi">Tiếng Việt</option><option value="zh">中文 · Tiếng Trung</option></select><p>Người được mời dùng ngôn ngữ còn lại. Phòng có tối đa hai người.</p><button id="create" class="start-button">Tạo phòng gọi</button></div>
+      <div id="join-form" hidden><h2>Bạn được mời vào phòng · 加入通话</h2><p>Bấm tham gia, cho phép micro và âm thanh để bắt đầu. Ngôn ngữ của bạn sẽ đối ứng với người tạo phòng.</p><button id="join" class="start-button">Tham gia / 加入</button></div>
+    </section>
+    <section id="call" class="workspace" hidden aria-label="Phòng gọi">
+      <div class="workspace-bar"><strong id="identity"></strong><button id="leave" class="text-button">Rời phòng / 离开</button></div>
+      <div id="invite-panel" class="invite-panel" hidden><label for="invite-link">Gửi liên kết này cho người kia (hết hạn chờ sau 2 phút)</label><div class="invite-row"><input id="invite-link" readonly><button id="copy" class="audio-button">Sao chép</button></div><p>Người nhận vẫn cần mật khẩu truy cập website nếu website đang bật bảo vệ.</p></div>
+      <div class="panels"><article class="panel"><div class="panel-heading"><h2>Lời nói gốc / 原文</h2><span id="speaker" class="language-badge"></span></div><div id="source" class="transcript" aria-live="polite">Chờ cuộc trò chuyện bắt đầu…</div></article><article class="panel target-panel"><div class="panel-heading"><h2>Bản dịch / 翻译</h2></div><div id="translation" class="transcript" aria-live="polite">Giọng AI sẽ phát cho người nghe.</div></article></div>
+      <div class="control-area"><div class="status-group"><span class="status-dot" id="status-dot"></span><div><strong id="status" role="status">Đang chờ người kia…</strong><span id="detail">Micro đang tắt.</span></div></div><button id="speak" class="start-button" disabled>Đến lượt tôi nói / 我要说话</button></div>
+      <button id="resume" class="audio-button" hidden>Bật âm thanh / 开启声音</button>
+    </section>
+    <div id="notice" class="notice" role="alert" hidden></div>
+    <p class="room-note">Dùng tai nghe để giảm tiếng vọng. Mỗi câu tối đa 30 giây; phòng tối đa 15 phút. Bấm nói, dừng khoảng 2 giây để dịch, hoặc bấm “Dịch câu này”.</p>
+    <p class="room-note">Âm thanh đi qua máy chủ và OpenAI để phiên dịch. Ứng dụng không lưu bản ghi hay nội dung cuộc gọi vào đĩa. Rời trang hoặc mất kết nối sẽ đóng phòng.</p>
+    <section class="history"><div class="history-heading"><h2>Cuộc trò chuyện / 对话</h2><span>Chỉ trong tab này</span></div><div id="room-history" aria-live="polite"></div></section>
+    <footer><span>Được tạo để hiểu nhau.</span><span>Tiếng Việt · 中文</span></footer>
+  </main>
+</body>
+</html>

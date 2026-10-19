@@ -1,11 +1,19 @@
 {
-  "name": "song-ngu", "version": "0.1.0", "private": true, "type": "module",
-  "engines": { "node": ">=22" },
+  "name": "song-ngu",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node --env-file-if-exists=.env.local server.js",
     "dev": "node --watch --env-file-if-exists=.env.local server.js",
     "test": "node --test test/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage test/*.test.js",
     "check": "node --check server.js && node --check lib/session.js && node --check public/core.js && node --check public/app.js"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
   }
 }

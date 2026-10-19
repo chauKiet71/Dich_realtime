@@ -3,12 +3,18 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { loadKey, sessionConfig } from './lib/session.js';
+import { RoomHub } from './lib/rooms.js';
 
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/core.js', ['core.js', 'text/javascript']],
+  ['/room', ['room.html', 'text/html; charset=utf-8']],
+  ['/room.js', ['room.js', 'text/javascript']],
+  ['/room-audio.js', ['room-audio.js', 'text/javascript']],
+  ['/pcm-worklet.js', ['pcm-worklet.js', 'text/javascript']],
+  ['/room.css', ['room.css', 'text/css']],
 ]);
 const publicDir = new URL('./public/', import.meta.url);
 const headers = {
@@ -24,7 +30,7 @@ function send(res, status, body, type = 'application/json') {
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
-export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = () => loadKey(env) } = {}) {
+export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = () => loadKey(env), providerFactory, now } = {}) {
   let attempts = [];
   let hourlyAttempts = [];
   const production = env.NODE_ENV === 'production';
@@ -32,7 +38,15 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
   const configuredOrigin = publicOrigin ? new URL(publicOrigin) : null;
   const accessPassword = env.APP_ACCESS_PASSWORD;
   const hash = value => createHash('sha256').update(value).digest();
-  return http.createServer(async (req, res) => {
+  function reserveSessions(count = 1) {
+    const time = Date.now();
+    attempts = attempts.filter(t => time - t < 60000);
+    hourlyAttempts = hourlyAttempts.filter(t => time - t < 3600000);
+    if (attempts.length + count > 6 || hourlyAttempts.length + count > 60) return false;
+    attempts.push(...Array(count).fill(time)); hourlyAttempts.push(...Array(count).fill(time)); return true;
+  }
+  const rooms = new RoomHub({ env, keyLoader, reserveSessions, providerFactory, now });
+  const server = http.createServer(async (req, res) => {
     try {
       // Railway readiness probes use an internal Host header, without user credentials.
       if (req.method === 'GET' && req.url === '/healthz') {
@@ -53,6 +67,19 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
         }
       }
       const path = new URL(req.url, `http://${host}`).pathname;
+      if (req.method === 'POST' && ['/api/rooms', '/api/rooms/join'].includes(path)) {
+        if (req.headers.origin !== (production ? configuredOrigin.origin : `http://${host}`) || req.headers['x-translation-client'] !== '1') return send(res, 403, { error: 'Yêu cầu không hợp lệ.' });
+        if (!req.headers['content-type']?.startsWith('application/json')) return send(res, 415, { error: 'Định dạng yêu cầu không hợp lệ.' });
+        let body = '';
+        for await (const chunk of req) { body += chunk.toString(); if (Buffer.byteLength(body) > 4096) return send(res, 413, { error: 'Yêu cầu quá lớn.' }); }
+        let input;
+        try { input = JSON.parse(body); if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error(); }
+        catch { return send(res, 400, { error: 'Dữ liệu không hợp lệ.' }); }
+        try {
+          const result = path === '/api/rooms' ? rooms.create(input.language) : rooms.join(input.roomId, input.invite);
+          return send(res, path === '/api/rooms' ? 201 : 200, result);
+        } catch (e) { return send(res, e.status || 400, { error: e.status ? e.message : 'Yêu cầu không hợp lệ.' }); }
+      }
       if (req.method === 'GET' && path === '/api/health') {
         let configured = false;
         try { await keyLoader(); configured = true; } catch { /* No secret in errors. */ }
@@ -65,13 +92,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
         if (!req.headers['content-type']?.startsWith('application/sdp')) return send(res, 415, { error: 'Định dạng kết nối không hợp lệ.' });
         const pair = req.headers['x-language-pair'] ?? 'vi-zh';
         if (!['vi-zh', 'vi-en'].includes(pair)) return send(res, 400, { error: 'Chọn chế độ Việt – Trung hoặc Việt – Anh.' });
-        const now = Date.now();
-        attempts = attempts.filter(t => now - t < 60000);
-        hourlyAttempts = hourlyAttempts.filter(t => now - t < 3600000);
-        if (hourlyAttempts.length >= 60) return send(res, 429, { error: 'Đã đạt giới hạn 60 phiên mỗi giờ. Vui lòng thử lại sau.' });
-        if (attempts.length >= 6) return send(res, 429, { error: 'Bạn đã kết nối nhiều lần. Hãy thử lại sau một phút.' });
-        attempts.push(now);
-        hourlyAttempts.push(now);
+        if (!reserveSessions()) return send(res, 429, { error: 'Đã đạt giới hạn phiên (6/phút, 60/giờ). Hãy thử lại sau.' });
         let key;
         try { key = await keyLoader(); } catch { return send(res, 503, { error: 'Chưa đọc được API key. Kiểm tra cấu hình máy chủ.' }); }
         let body = '';
@@ -102,6 +123,21 @@ export function createApp({ env = process.env, fetchImpl = fetch, keyLoader = ()
       else res.end();
     }
   });
+  server.on('upgrade', (req, socket, head) => {
+    const host = req.headers.host || '';
+    const origin = production ? configuredOrigin?.origin : `http://${host}`;
+    const validHost = production ? configuredOrigin?.protocol === 'https:' && accessPassword && host === configuredOrigin.host : /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+    const auth = req.headers.authorization || '';
+    const credentials = auth.startsWith('Basic ') ? Buffer.from(auth.slice(6), 'base64').toString('utf8') : '';
+    if (req.url !== '/api/room/socket' || !validHost || req.headers.origin !== origin || (accessPassword && !timingSafeEqual(hash(credentials), hash(`songngu:${accessPassword}`)))) {
+      socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return;
+    }
+    rooms.upgrade(req, socket, head);
+  });
+  // Also stop upgraded sockets before HTTP shutdown (HTTP close does not own them).
+  const close = server.close.bind(server);
+  server.close = callback => { rooms.close(); return close(callback); };
+  return server;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
