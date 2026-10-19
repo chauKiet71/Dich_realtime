@@ -44,7 +44,8 @@ function frame(buffer) {
 function commit() {
   if (phase !== 'listening' || speaker !== member?.memberId) return;
   audio.capture(false); phase = 'committing'; renderState();
-  send({ type: 'commit' });
+  send({ type: speech ? 'commit' : 'cancel' });
+  if (!speech) notice('Chưa nghe thấy giọng nói. Bấm nói và thử lại. / 未检测到语音。');
 }
 function transcript(event) {
   let entry = entries.get(event.turnId);
