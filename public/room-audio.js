@@ -7,6 +7,13 @@ export class RoomAudio {
     this.context = new AudioContext();
     await this.context.resume();
     this.cues = new AudioCues(this.context);
+    try {
+      const response = await fetch('/turn-end.wav', { signal: AbortSignal.timeout(5000) });
+      if (!response.ok) throw new Error('Cue unavailable');
+      const buffer = await this.context.decodeAudioData(await response.arrayBuffer());
+      if (!this.closed) this.turnEndBuffer = buffer;
+    } catch { /* The generated beep remains available as a fallback. */ }
+    if (this.closed) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     if (this.closed) { stream.getTracks().forEach(t => t.stop()); return; }
     this.stream = stream; this.capture(false);
@@ -22,19 +29,34 @@ export class RoomAudio {
     this.input.connect(this.node); this.node.connect(this.context.destination);
   }
   capture(enabled) {
-    if (enabled) this.cues?.stop();
+    if (enabled) { this.stopTurnEnd(); this.cues?.stop(); }
     this.stream?.getAudioTracks().forEach(t => { t.enabled = enabled; });
     this.node?.port.postMessage(enabled);
   }
   async resume() { await this.context.resume(); }
   playTurnEnd() {
     if (this.closed) return false;
+    if (this.turnEndBuffer && this.context.state === 'running') {
+      try {
+        this.stopTurnEnd();
+        const source = this.turnEndSource = this.context.createBufferSource();
+        source.buffer = this.turnEndBuffer; source.connect(this.context.destination);
+        source.onended = () => { source.disconnect(); if (this.turnEndSource === source) this.turnEndSource = null; };
+        source.start(); return true;
+      } catch { this.stopTurnEnd(); }
+    }
     this.cues ??= new AudioCues(this.context);
     return this.cues.play('speech-end');
   }
   playTranslationEnd(onComplete) {
     this.cues ??= new AudioCues(this.context);
     return this.cues.play('translation-end', onComplete);
+  }
+  stopTurnEnd() {
+    if (!this.turnEndSource) return;
+    this.turnEndSource.onended = null;
+    try { this.turnEndSource.stop(); } catch { /* Already ended. */ }
+    this.turnEndSource.disconnect(); this.turnEndSource = null;
   }
   async flush() {
     this.stream?.getAudioTracks().forEach(t => { t.enabled = false; });
@@ -59,7 +81,7 @@ export class RoomAudio {
   }
   drained() { return this.context?.state === 'running' && this.sources.size === 0 && this.context.currentTime >= this.next; }
   close() {
-    this.cues?.stop();
+    this.stopTurnEnd(); this.cues?.stop(); this.turnEndBuffer = null;
     this.flushDone?.();
     this.closed = true; this.capture(false);
     this.stream?.getTracks().forEach(t => { t.onended = null; t.stop(); });
