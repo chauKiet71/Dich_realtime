@@ -29,3 +29,11 @@ Verification:
 
 Live provider quota may persist after retries. This release handles that failure;
 it does not increase the provider's quota or guarantee successful translation.
+
+Railway deployment `f723f550-273c-4015-8d68-d020b9f912c7`: SUCCESS, source `ca1f036`.
+Production health ready=true, engine=hybrid, unauthenticated health=401; new
+client 429 recovery branch served. Synthetic vi→zh production request returned
+controlled HTTP 429 with ROUTER_RATE_LIMITED and current source in 3143ms.
+Provider quota is still limited; translation success is not claimed. Exact
+retry count/delays are verified by unit tests, not inferred from elapsed time.
+No Railway variables, keys or password changed for this release.
