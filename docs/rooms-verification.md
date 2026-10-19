@@ -1,5 +1,27 @@
 # Phòng gọi Việt–Trung hai thiết bị — 19/10/2026
 
+## Bản sửa kết nối Railway
+
+Người dùng báo lỗi mở WebSocket trên Railway. Kiểm tra ban đầu bằng Chrome có
+HTTP Basic vẫn tạo phòng thành công, nên chưa xác định được nguyên nhân riêng
+trên thiết bị của người dùng. Đã sửa hai điểm tương thích: cookie HttpOnly ký
+HMAC, hạn 15 phút, Secure trên production, SameSite=Strict, chỉ cho đường dẫn
+socket; và CSP chỉ rõ origin WSS của ứng dụng. Cookie chỉ được cấp sau khi tạo
+hoặc tham gia phòng qua HTTP đã xác thực; quyền thành viên vẫn kiểm tra riêng.
+
+- RED: thiếu cookie xác thực và thiếu origin WebSocket trong CSP, 2 tests fail
+  (`895773e`). GREEN: 11 tests phòng đạt sau sửa (`a8e21dc`).
+- Tổng kiểm tra: 33/33 tests, coverage Node 96,83% dòng / 89,75% nhánh;
+  `npm run check`, `npm audit --omit=dev` và `git diff --check` đạt.
+- Browser smoke `--protected --omit-ws-basic`: hai browser context có mật khẩu,
+  chủ động xóa Authorization ở upgrade, vẫn truyền/phát hai chiều thành công.
+- Đã triển khai Railway: `fa653907-817a-4694-a761-70721d7697e3`, trạng thái SUCCESS.
+  Chrome trên tên miền thật mở phòng được, nhận cookie Secure/HttpOnly và CSP mới.
+  WebSocket chỉ gửi cookie (không Basic Authorization) nhận HTTP 101.
+- Phép kiểm tra production chỉ tạo một thành viên nên không mở phiên OpenAI.
+  Chưa tái kiểm tra trên thiết bị cụ thể đã báo lỗi. Người dùng cần tải lại trang
+  và tạo phòng mới. Phần bên dưới giữ nguyên bằng chứng của bản triển khai đầu.
+
 ## Phạm vi
 
 Yêu cầu được lấy trực tiếp từ cuộc trao đổi: phát triển web hiện có với một phòng
