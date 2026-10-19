@@ -80,3 +80,34 @@ test('stopping cues prevents stale completion callbacks', () => {
 
   assert.equal(completed, false);
 });
+
+test('connection-ready plays the supplied audio and completes once', () => {
+  const { context, oscillators } = fakeAudioContext();
+  let started = 0, completed = 0;
+  const source = { connect() {}, disconnect() {}, start() { started++; }, stop() {} };
+  context.createBufferSource = () => source;
+  const buffer = { duration: 1.136 };
+  const cues = new AudioCues(context);
+  cues.readyBuffer = buffer;
+  assert.equal(cues.play('connection-ready', () => completed++), true);
+  assert.equal(source.buffer, buffer);
+  assert.equal(started, 1);
+  assert.equal(oscillators.length, 0);
+  assert.equal(completed, 0);
+  source.onended();
+  source.onended?.();
+  assert.equal(completed, 1);
+});
+
+test('stopping connection-ready suppresses microphone release callback', () => {
+  const { context } = fakeAudioContext();
+  const source = { connect() {}, disconnect() {}, start() {}, stop() {} };
+  context.createBufferSource = () => source;
+  const cues = new AudioCues(context);
+  cues.readyBuffer = {};
+  let completed = false;
+  assert.equal(cues.play('connection-ready', () => { completed = true; }), true);
+  cues.stop();
+  source.onended?.();
+  assert.equal(completed, false);
+});
