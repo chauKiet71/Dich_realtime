@@ -39,9 +39,8 @@ try {
     assert.match(text, /Cloudflare.*nhận dạng và dịch.*Google/);
     assert.doesNotMatch(text, /OpenAI|OpenRouter/);
   }
-  await page.locator('#choose-single').click();
   await page.locator('[data-pair="vi-en"]').click();
-  await page.locator('#begin-conversation').click();
+  await page.locator('#start').click();
   await page.waitForFunction(()=>window.tracks.length && window.tracks.every(t=>t.enabled));
   await page.evaluate(()=>{
     window.synthetic.gain.value=.1;
@@ -67,8 +66,8 @@ try {
   assert.ok(calls[0].pcm.length>=9600);
   assert.equal(await page.evaluate(()=>window.playEvents.every(e=>!e.mic)),true);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-  await page.locator('.back-link').click();
+  await page.locator('#start').click();
   assert.equal(await page.evaluate(()=>window.tracks.every(t=>t.readyState==='ended')),true);
   assert.deepEqual(errors,[]);
-  console.log(`PASS hybrid browser (429 recovery=${test429}): microphone capture, ${Math.round(latency)}ms silence commit, translation playback, cue mic isolation, resume, navigation cleanup, mobile layout. Providers mocked.`);
+  console.log(`PASS hybrid browser (429 recovery=${test429}): microphone capture, ${Math.round(latency)}ms silence commit, translation playback, cue mic isolation, resume, stop cleanup, mobile layout. Providers mocked.`);
 } finally {await browser?.close();await new Promise(r=>{app.closeAllConnections();app.close(r);});}

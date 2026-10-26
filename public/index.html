@@ -1,34 +1,55 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#f4f8ff"><title>Song Ngữ · Trung ↔ Việt</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Song Ngữ · Việt ↔ Trung</title>
   <meta name="description" content="Phiên dịch giọng nói Việt–Trung và Việt–Anh theo thời gian thực.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23234e43'/%3E%3Ctext x='12' y='46' fill='white' font-size='43'%3E言%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/redesign.css"><script type="module" src="/app.js"></script><script type="module" src="/ui.js"></script>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/redesign.css">
+  <script type="module" src="/app.js"></script>
+  <script type="module" src="/ui.js"></script>
 </head>
-<body>
-  <header class="topbar"><a class="brand" href="/" aria-label="Song Ngữ trang chủ"><span class="brandmark">言</span><span>song ngữ<span class="branddot">.</span></span></a><div class="top-right"><span class="version">PHIÊN DỊCH TRỰC TIẾP</span><span class="connection" id="connection"><i></i> Chưa kết nối</span></div></header>
-  <main>
-    <section class="intro"><div><div class="eyebrow">HAI NGÔN NGỮ. MỘT CUỘC TRÒ CHUYỆN.</div><h1>Cứ nói, để chúng tôi<br><em>kết nối.</em></h1><p id="intro-description">Nói tiếng Trung hoặc tiếng Việt. Ngừng khoảng 700 ms,<br class="desktop"> bản dịch sẽ được đọc thành tiếng.</p></div><div id="pair-illustration" class="language-pair" aria-label="Tiếng Trung và tiếng Việt"><span class="character"><span id="pair-symbol">中</span><small id="pair-code">ZH</small></span><span class="pair-arrow">⇄</span><span class="character vietnamese">Vi<small>VI</small></span></div></section>
-    <div class="pair-picker"><label for="language-pair">Chế độ phiên dịch</label><select id="language-pair" aria-describedby="pair-help"><option value="vi-zh">Việt ↔ Trung</option><option value="vi-en">Việt ↔ Anh</option></select><span id="pair-help">Dừng phiên để đổi chế độ.</span><a href="/room">Gọi giữa hai thiết bị · Việt ⇄ Trung →</a></div>
-    <ol class="flow-steps" aria-label="Ba bước phiên dịch">
-      <li class="current" data-flow-step="listen" aria-current="step"><span>1</span><div><strong>Nói tự nhiên</strong><small>Micro đang nghe bạn</small></div></li>
-      <li data-flow-step="translate"><span>2</span><div><strong>Đợi bíp xác nhận</strong><small>Câu đã được gửi để dịch</small></div></li>
-      <li data-flow-step="play"><span>3</span><div><strong>Nghe bản dịch</strong><small>Bíp đôi khi đã hoàn tất</small></div></li>
-    </ol>
+<body class="new-ui single-ui compact-ui">
+  <!-- User, language and microphone icons: Heroicons, Tailwind Labs (MIT); see docs/heroicons-LICENSE.txt. -->
+  <main aria-label="Song Ngữ · Phiên dịch giọng nói">
+    <div class="language-tabs" role="group" aria-label="Cặp ngôn ngữ">
+      <button type="button" data-pair="vi-zh" aria-pressed="true">Việt ↔ Trung</button>
+      <button type="button" data-pair="vi-en" aria-pressed="false">Việt ↔ Anh</button>
+    </div>
     <section id="translator-workspace" class="workspace" aria-label="Không gian phiên dịch">
-      <div class="workspace-bar"><div class="mode"><span class="auto-icon">✦</span> Tự nhận diện ngôn ngữ <span class="separator">/</span><span class="muted">Hai người nói luân phiên</span></div><button class="text-button" id="clear" type="button">Xóa nội dung <span aria-hidden="true">↺</span></button></div>
-      <div class="panels"><article class="panel source-panel"><div class="panel-heading"><span class="number">01</span><h2>Lời bạn nói</h2><span class="language-badge" id="source-language">TỰ ĐỘNG</span></div><div class="transcript" id="source-text" aria-live="polite"><span class="placeholder">Mỗi cuộc trò chuyện<br>bắt đầu bằng một lời chào.</span></div><div class="panel-footer"><span class="tiny-dot"></span><span id="source-hint">Bản chép lời xuất hiện khi bạn nói</span></div></article>
-      <article class="panel target-panel"><div class="panel-heading"><span class="number">02</span><h2>Bản dịch</h2><span class="language-badge" id="target-language">TRUNG ⇄ VIỆT</span></div><div class="transcript" id="target-text" aria-live="polite"><span class="placeholder">Hiểu nhau,<br>không còn khoảng cách.</span></div><div class="panel-footer"><span aria-hidden="true">◖))</span><span id="target-hint">Tự động phát giọng nói AI</span></div></article></div>
-      <div class="control-area"><div class="status-group"><span class="status-dot" id="status-dot"></span><div><strong id="status" role="status">Sẵn sàng lắng nghe</strong><span id="status-detail">Một thiết bị · Hai người nói luân phiên</span></div></div><div class="wave" id="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><button class="start-button" id="start" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0014 0v-2M12 19v3M8 22h8"/></svg><span id="start-label">Bắt đầu phiên dịch</span></button></div>
-      <div class="notice" id="notice" role="alert" hidden></div><button id="resume-audio" class="audio-button" hidden>Bấm để bật âm thanh</button>
-      <div class="cue-legend"><span><i class="cue-dot low"></i>Bíp ngắn: đã nhận câu</span><span><i class="cue-dot high"></i>Bíp đôi: bản dịch hoàn tất</span></div>
+      <div class="panels">
+        <article class="panel source-panel">
+          <div class="panel-heading"><span class="panel-icon"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%233e70fa%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%0A%20%20%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M15.75%206a3.75%203.75%200%201%201-7.5%200%203.75%203.75%200%200%201%207.5%200ZM4.501%2020.118a7.5%207.5%200%200%201%2014.998%200A17.933%2017.933%200%200%201%2012%2021.75c-2.676%200-5.216-.584-7.499-1.632Z%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" width="19" height="19"></span><h2>Lời bạn nói</h2><span class="language-badge" id="source-language">TỰ ĐỘNG</span></div>
+          <div class="transcript" id="source-text" aria-live="polite"><span class="placeholder">Mỗi cuộc trò chuyện<br>bắt đầu bằng một lời chào.</span></div>
+          <span id="source-hint" hidden>Bản chép lời xuất hiện khi bạn nói</span>
+        </article>
+        <article class="panel target-panel">
+          <div class="panel-heading"><span class="panel-icon"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%23737f9b%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%0A%20%20%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m10.5%2021%205.25-11.25L21%2021m-9-3h7.5M3%205.621a48.474%2048.474%200%200%201%206-.371m0%200c1.12%200%202.233.038%203.334.114M9%205.25V3m3.334%202.364C11.176%2010.658%207.69%2015.08%203%2017.502m9.334-12.138c.896.061%201.785.147%202.666.257m-4.589%208.495a18.023%2018.023%200%200%201-3.827-5.802%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" width="20" height="20"></span><h2>Bản dịch</h2><span class="language-badge" id="target-language">VIỆT ⇄ TRUNG</span></div>
+          <div class="transcript" id="target-text" aria-live="polite"><span class="placeholder">Hiểu nhau,<br>không còn khoảng cách.</span></div>
+          <span id="target-hint" hidden>Tự động phát giọng nói AI</span>
+        </article>
+      </div>
+      <div class="notice" id="notice" role="alert" hidden></div>
+      <button id="resume-audio" class="audio-button" type="button" hidden>Bấm để bật âm thanh</button>
+      <div class="control-area">
+        <div class="status-group"><div class="status-pill"><span class="status-dot" id="status-dot"></span><strong id="status" role="status">Sẵn sàng phiên dịch</strong></div><span id="status-detail">Bấm bắt đầu để trò chuyện</span></div>
+        <button class="start-button" id="start" type="button" aria-describedby="status-detail"><span class="mic-disc"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%23ffffff%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%0A%20%20%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M12%2018.75a6%206%200%200%200%206-6v-1.5m-6%207.5a6%206%200%200%201-6-6v-1.5m6%207.5v3.75m-3.75%200h7.5M12%2015.75a3%203%200%200%201-3-3V4.5a3%203%200%201%201%206%200v8.25a3%203%200%200%201-3%203Z%22%2F%3E%0A%3C%2Fsvg%3E%0A" alt="" width="36" height="36"></span><span id="start-label">Bắt đầu phiên dịch</span></button>
+        <div class="wave" id="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
     </section>
-    <div class="bottom-row"><span class="privacy"><span aria-hidden="true">◈</span> <span data-ai-privacy>Âm thanh và văn bản được gửi đến các dịch vụ AI để nhận dạng, dịch và đọc. Không lưu bản ghi trên máy chủ.</span></span><button class="text-button" id="settings-button" aria-expanded="false" aria-controls="settings">Tùy chỉnh <span aria-hidden="true">⚙</span></button></div>
-    <section id="settings" class="settings" hidden><div><h3>Phù hợp với không gian của bạn</h3><p>Nếu tiếng ồn khiến ứng dụng chưa chốt câu, tăng ngưỡng nhận giọng nói.</p></div><label>Ngưỡng nhận giọng nói <input id="sensitivity" type="range" min="8" max="70" value="18"><span id="sensitivity-value">18</span></label><div class="setting-note">Chốt câu sau 700 ms im lặng. Micro tạm ngắt khi đọc bản dịch để tránh vọng âm.</div></section>
-    <section class="history"><div class="history-heading"><h2>Cuộc trò chuyện <span id="history-count">0</span></h2><span>Chỉ lưu trong phiên này</span></div><div id="history-list"><div class="empty-history"><span>↔</span><p>Câu chuyện của bạn sẽ xuất hiện ở đây.</p></div></div></section>
-    <footer><span>Được tạo để hiểu nhau.</span><span>Tiếng Việt <span class="footer-dot">•</span> 中文 <span class="footer-dot">•</span> English</span></footer>
+    <details class="extra-options">
+      <summary>Lịch sử &amp; tùy chỉnh</summary>
+      <p class="privacy" data-ai-privacy>Âm thanh và văn bản được gửi đến các dịch vụ AI để nhận dạng, dịch và đọc. Không lưu bản ghi trên máy chủ.</p>
+      <div class="compact-actions"><button id="clear" class="text-button" type="button">Xóa nội dung</button><button id="settings-button" class="text-button" type="button" aria-expanded="false" aria-controls="settings">Tùy chỉnh micro</button></div>
+      <section id="settings" class="settings" hidden><h3>Ngưỡng nhận giọng nói</h3><label for="sensitivity">Độ nhạy micro <input id="sensitivity" type="range" min="8" max="70" value="18"><span id="sensitivity-value">18</span></label><p class="setting-note">Chốt câu sau 700 ms im lặng. Micro tạm ngắt khi đọc bản dịch để tránh vọng âm.</p></section>
+      <section class="history" aria-label="Lịch sử trong phiên"><div class="history-heading"><h2>Cuộc trò chuyện <span id="history-count">0</span></h2><span>Chỉ lưu trong phiên này</span></div><div id="history-list"><div class="empty-history">Câu chuyện của bạn sẽ xuất hiện ở đây.</div></div></section>
+    </details>
+    <p class="processing-note">Giọng nói được xử lý bởi AI.</p>
+    <!-- Compatibility hooks for the existing translation engine. -->
+    <div hidden><select id="language-pair" aria-label="Cặp ngôn ngữ"><option value="vi-zh">Việt ↔ Trung</option><option value="vi-en">Việt ↔ Anh</option></select><span id="intro-description"></span><span id="pair-symbol"></span><span id="pair-code"></span><span id="pair-illustration"></span><span id="connection"></span></div>
   </main>
   <audio id="remote-audio" autoplay></audio>
 </body>
