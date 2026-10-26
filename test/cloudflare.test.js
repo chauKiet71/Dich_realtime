@@ -107,6 +107,18 @@ test('Cloudflare accepts a server-side token file but rejects a file containing 
   await assert.rejects(f.pipeline.credentials());
 });
 
+test('Cloudflare accepts labeled account/token files without copying secrets into environment files', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'cloudflare-labeled-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const path = join(dir, 'credentials.txt');
+  await writeFile(path, `Get Account ID: ${account}\r\nGet API Token: synthetic-cloudflare-token\r\n`);
+  const f = fixture({ config: { CLOUDFLARE_API_TOKEN: '', CLOUDFLARE_API_TOKEN_FILE: path } });
+  await f.pipeline.translate({ pcm });
+  assert.equal(f.calls[0].options.headers.Authorization, 'Bearer synthetic-cloudflare-token');
+  await writeFile(path, 'API Token: first-token\nAPI Token: second-token');
+  await assert.rejects(f.pipeline.credentials());
+});
+
 test('Cloudflare errors stop the chain and never expose provider bodies or use another provider', async () => {
   for (const stage of ['stt', 'translation']) {
     const f = fixture({ respond: async url => (stage === 'stt' ? url.includes('/run/') : url.endsWith('/chat/completions'))
