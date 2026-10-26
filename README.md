@@ -1,6 +1,30 @@
 # Song Ngữ — phiên dịch Việt ↔ Trung và Việt ↔ Anh
 
-## Nhà cung cấp dịch hiện tại: OpenRouter / DeepSeek
+## Nhận dạng và dịch bằng Cloudflare Workers AI
+
+Đặt `TRANSLATION_ENGINE=hybrid` và `TRANSLATION_PROVIDER=cloudflare` để chạy
+cả nhận dạng lẫn dịch trên Cloudflare. Backend vẫn chạy trên Railway;
+không cần triển khai thêm một Worker.
+
+- Nhận dạng: `@cf/openai/whisper-large-v3-turbo`, chạy trên Cloudflare,
+  gửi WAV bằng base64 với `task=transcribe` để giữ nguyên ngôn ngữ gốc.
+- Dịch: `@cf/qwen/qwen3-30b-a3b-fp8`, JSON output, hướng dẫn `/no_think`.
+- Đọc bản dịch: Google WaveNet như trước.
+- Hỗ trợ Việt ↔ Trung, Việt ↔ Anh trên một thiết bị và phòng Việt ↔ Trung.
+- Chế độ này không đọc key OpenAI, OpenRouter hoặc 9Router và không chuyển
+  dữ liệu sang các nhà cung cấp đó khi Cloudflare lỗi.
+
+Cần `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` có quyền Workers AI và
+`GOOGLE_TTS_API_KEY` trên Railway. Local có thể dùng `CLOUDFLARE_API_TOKEN_FILE`
+và `GOOGLE_TTS_API_KEY_FILE`; tệp Cloudflare chứa một token thuần hoặc một dòng
+`API Token: ...` / `Get API Token: ...` (có thể kèm dòng Account ID).
+`CLOUDFLARE_TRANSLATE_MODEL` cho phép chọn một model `@cf/.../...` khác có hỗ trợ
+chat completions và JSON. Model nhận dạng được cố định để bảo đảm đúng định dạng audio.
+
+Xem [hướng dẫn Cloudflare](docs/cloudflare.md) để cấu hình, kiểm tra và triển khai.
+`.env.example` chỉ là mẫu; thay đổi mã không tự đổi provider trên Railway.
+
+## Chế độ OpenRouter / DeepSeek trước đây
 
 Chọn `TRANSLATION_PROVIDER=openrouter` để dùng OpenRouter thay 9Router.
 Model: `OPENROUTER_TRANSLATE_MODEL=deepseek/deepseek-v3.2`.

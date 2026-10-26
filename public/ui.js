@@ -26,7 +26,7 @@ if (!room) {
     </div>`;
   bar.after(home);
   const choices = document.createElement('section'); choices.id = 'choice-view';
-  choices.innerHTML = '<h1>Dùng chung một thiết bị</h1><p>Chọn ngôn ngữ để bắt đầu</p><div class="pair-options" role="group" aria-label="Cặp ngôn ngữ"><button class="pair-card" data-pair="vi-zh" aria-pressed="true"><span class="flags">🇻🇳 <i>↔</i> 🇨🇳</span><strong>Việt ↔ Trung</strong><small>Dịch hai chiều, tự nhận diện</small><span class="radio-mark"></span></button><button class="pair-card" data-pair="vi-en" aria-pressed="false"><span class="flags">🇻🇳 <i>↔</i> 🇬🇧</span><strong>Việt ↔ Anh</strong><small>Dịch hai chiều, tự nhận diện</small><span class="radio-mark"></span></button></div><p class="permission-note">Khi bắt đầu, ứng dụng sẽ xin quyền micro. Âm thanh gửi OpenAI; chế độ hybrid gửi văn bản đến OpenRouter để dịch và Google để đọc.</p><button id="begin-conversation" class="primary-action">Bắt đầu</button>';
+  choices.innerHTML = '<h1>Dùng chung một thiết bị</h1><p>Chọn ngôn ngữ để bắt đầu</p><div class="pair-options" role="group" aria-label="Cặp ngôn ngữ"><button class="pair-card" data-pair="vi-zh" aria-pressed="true"><span class="flags">🇻🇳 <i>↔</i> 🇨🇳</span><strong>Việt ↔ Trung</strong><small>Dịch hai chiều, tự nhận diện</small><span class="radio-mark"></span></button><button class="pair-card" data-pair="vi-en" aria-pressed="false"><span class="flags">🇻🇳 <i>↔</i> 🇬🇧</span><strong>Việt ↔ Anh</strong><small>Dịch hai chiều, tự nhận diện</small><span class="radio-mark"></span></button></div><p class="permission-note">Khi bắt đầu, ứng dụng sẽ xin quyền micro. <span data-ai-privacy>Âm thanh và văn bản được gửi đến các dịch vụ AI để nhận dạng, dịch và đọc. Không lưu bản ghi trên máy chủ.</span></p><button id="begin-conversation" class="primary-action">Bắt đầu</button>';
   home.after(choices);
   choices.querySelectorAll('.flags').forEach((flags, index) => {
     flags.innerHTML = `<span class="flag vn" aria-label="Việt Nam">★</span><i aria-hidden="true">↔</i><span class="flag ${index ? 'uk' : 'cn'}" aria-label="${index ? 'Anh' : 'Trung Quốc'}">${index ? '✚' : '★'}</span>`;
@@ -78,3 +78,17 @@ if (!room) {
   new MutationObserver(update).observe(document.body, { attributes: true, attributeFilter: ['data-phase'] });
   update();
 }
+
+// Show the actual processing services before the user starts recording.
+fetch('/api/health').then(response => response.ok ? response.json() : null).then(health => {
+  if (!health) return;
+  const legacyProvider = ['OpenRouter', '9Router'].includes(health.provider) ? health.provider : 'nhà cung cấp AI';
+  const message = health.engine === 'hybrid'
+    ? health.provider === 'Cloudflare'
+      ? 'Âm thanh và văn bản được gửi đến Cloudflare để nhận dạng và dịch; bản dịch được gửi Google để đọc.'
+      : `Âm thanh được gửi OpenAI để nhận dạng; văn bản gửi ${legacyProvider} để dịch và Google để đọc.`
+    : 'Âm thanh được gửi đến OpenAI để nhận dạng và dịch.';
+  document.querySelectorAll('[data-ai-privacy]').forEach(element => {
+    element.textContent = `${message} Không lưu bản ghi trên máy chủ.`;
+  });
+}).catch(() => { /* Keep the generic privacy notice if the service is unreachable. */ });

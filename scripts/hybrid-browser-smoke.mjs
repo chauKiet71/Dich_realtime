@@ -3,7 +3,7 @@ import { createApp } from '../server.js';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const calls=[];
 const test429=process.argv.includes('--429');
-const pipeline={model:'gemini-test',credentials:async()=>({}),translate:async data=>{
+const pipeline={model:'cloudflare-test',provider:'Cloudflare',sttProvider:'Cloudflare',sttModel:'whisper-test',credentials:async()=>({}),translate:async data=>{
   calls.push(data); await new Promise(r=>setTimeout(r,1400));
   if(test429 && calls.length===1) throw Object.assign(new Error('9Router đang giới hạn (429). Chờ rồi nói lại.'),{status:429,code:'ROUTER_RATE_LIMITED',source:'Xin chào'});
   return {source:'Xin chào',translation:'Hello',sourceLanguage:'vi',targetLanguage:'en',audio:Buffer.alloc(48000)};
@@ -34,6 +34,11 @@ try {
   const page=await context.newPage(); const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-ai-privacy]')].every(element => element.textContent.includes('Cloudflare')));
+  for (const text of await page.locator('[data-ai-privacy]').allTextContents()) {
+    assert.match(text, /Cloudflare.*nhận dạng và dịch.*Google/);
+    assert.doesNotMatch(text, /OpenAI|OpenRouter/);
+  }
   await page.locator('#choose-single').click();
   await page.locator('[data-pair="vi-en"]').click();
   await page.locator('#begin-conversation').click();
