@@ -30,3 +30,148 @@
   flex-shrink: 0;
 }
 @media(prefers-reduced-motion:reduce){.new-ui *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Single-screen translator, matching the supplied mobile reference. */
+body.compact-ui {
+  --blue: #3e70fa;
+  --ink: #172035;
+  --muted: #6e7a99;
+  background: #f3f6fc;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+.compact-ui main {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 402px;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: max(13px, env(safe-area-inset-top)) 14px max(8px, env(safe-area-inset-bottom)) 22px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+.compact-ui .language-tabs { display: flex; gap: 6px; flex-shrink: 0; }
+.compact-ui .language-tabs button {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 10px 6px;
+  border: 1px solid #cdd5e5;
+  border-radius: 12px;
+  background: #fcfdff;
+  color: #263047;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 4px 9px #20345c06;
+}
+.compact-ui .language-tabs button[aria-pressed=true] {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 4px 13px #3e70fa22;
+}
+.compact-ui .language-tabs button:disabled { opacity: .65; cursor: not-allowed; }
+.compact-ui .workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+  margin-top: 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.compact-ui .panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-height: 0; }
+.compact-ui .panel { height: 124px; min-height: 124px; margin: 0; padding: 14px 17px 17px; border: 0; border-radius: 16px; }
+.compact-ui .source-panel { background: #f0f6ff; }
+.compact-ui .target-panel { background: #f4f5f8; }
+.compact-ui .panel-heading { gap: 12px; min-height: 30px; margin: 0; }
+.compact-ui .panel-icon { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; background: #e8efff; }
+.compact-ui .target-panel .panel-icon { background: #e9ecf2; }
+.compact-ui .panel-icon img { display: block; }
+.compact-ui .panel-heading h2 { color: #6e7a99; font-size: 12px; font-weight: 600; letter-spacing: 0; }
+.compact-ui .language-badge { margin-left: auto; color: #3e70fa; font-size: 10px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+.compact-ui .transcript, .compact-ui .placeholder {
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -.3px;
+}
+.compact-ui .transcript { flex: 1; max-height: 24svh; min-height: 54px; overflow-y: auto; padding: 9px 0 0; }
+.compact-ui .control-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 0;
+  margin-top: auto;
+  padding: 28px 0 0;
+  border: 0;
+  background: transparent;
+}
+.compact-ui .status-group { display: flex; flex-direction: column; min-width: 0; width: 100%; gap: 2px; margin: 0; padding: 0; background: transparent; text-align: center; }
+.compact-ui .status-pill { display: flex; align-items: center; justify-content: center; gap: 13px; min-width: 210px; max-width: 100%; min-height: 37px; padding: 8px 18px; border-radius: 24px; background: #f2f7ff; }
+.compact-ui .status-group strong { color: #3869ee; font-size: 12px; font-weight: 650; line-height: 1.5; }
+.compact-ui .status-dot { flex: 0 0 8px; width: 8px; height: 8px; background: #a4b3d0; box-shadow: none; }
+.compact-ui .status-dot.active { background: #56bf86; box-shadow: none; }
+.compact-ui #status-detail { display: block; color: #75809e; font-size: 10px; line-height: 1.5; max-width: 100%; }
+.compact-ui #start, .compact-ui #start.running {
+  display: flex;
+  flex-direction: column;
+  gap: 27px;
+  width: auto;
+  min-width: 200px;
+  height: auto;
+  min-height: 0;
+  margin: 35px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: #697697;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+.compact-ui #start-label { position: static; width: auto; transform: none; color: #697697; font-size: 12px; }
+.compact-ui .mic-disc { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 11px #dce7ff, 0 0 0 22px #eff4ff; transition: background-color .2s, box-shadow .2s; }
+.compact-ui .mic-disc img { width: 36px; height: 36px; }
+.compact-ui #start:hover .mic-disc { background: #2e60e8; }
+.compact-ui #start.running .mic-disc { background: #e16a73; box-shadow: 0 0 0 11px #fce4e7, 0 0 0 22px #fff3f4; }
+.compact-ui .wave { height: 8px; margin-top: 8px; gap: 3px; }
+.compact-ui .wave i { width: 2px; height: 3px; background: transparent; }
+.compact-ui .wave.active i { background: #789bfa; }
+.compact-ui .extra-options { margin-top: 7px; font-size: 12px; color: var(--muted); }
+.compact-ui .extra-options summary { width: fit-content; margin: auto; padding: 5px 10px; cursor: pointer; font-size: 10px; }
+.compact-ui .extra-options[open] { padding-bottom: 12px; }
+.compact-ui .extra-options .privacy { display: block; font-size: 11px; line-height: 1.6; margin: 14px 0; }
+.compact-ui .compact-actions { display: flex; justify-content: space-between; margin-bottom: 14px; }
+.compact-ui .compact-actions button { color: #4168b3; font-size: 12px; }
+.compact-ui .settings { margin: 0 0 18px; padding: 16px; }
+.compact-ui .settings h3 { font-size: 15px; }
+.compact-ui .history { margin-top: 0; }
+.compact-ui .history-heading { padding-bottom: 8px; gap: 8px; }
+.compact-ui .history-heading h2 { font-size: 14px; }
+.compact-ui .empty-history { min-height: 72px; font-size: 12px; }
+.compact-ui .processing-note { margin: 0; color: #7b86a0; text-align: center; font-size: 9px; line-height: 1.5; }
+.compact-ui .notice { flex-shrink: 0; margin: 12px 0 0; font-size: 12px; padding: 10px 12px; }
+.compact-ui .audio-button { flex-shrink: 0; margin: 12px 0 0; }
+@media (min-width: 520px) {
+  .compact-ui main { min-height: min(760px, calc(100svh - 48px)); margin: 24px auto; border: 1px solid #e4eaf5; border-radius: 24px; padding: 20px 22px 16px; }
+}
+@media (max-height: 640px) {
+  .compact-ui .control-area { padding-top: 36px; }
+  .compact-ui #start { margin-top: 30px; gap: 24px; }
+}
+@media (max-width: 360px) {
+  .compact-ui main { padding-left: 16px; padding-right: 16px; }
+  .compact-ui .language-tabs button { font-size: 16px; }
+  .compact-ui .panel { padding-left: 14px; padding-right: 14px; }
+  .compact-ui .panel-heading { gap: 8px; }
+}
