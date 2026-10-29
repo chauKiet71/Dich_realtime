@@ -56,7 +56,9 @@ fetch('/api/health').then(response => response.ok ? response.json() : null).then
   if (!health) return;
   const legacyProvider = ['OpenRouter', '9Router'].includes(health.provider) ? health.provider : 'nhà cung cấp AI';
   const message = health.engine === 'hybrid'
-    ? health.provider === 'Cloudflare'
+    ? health.sttProvider === 'OpenRouter'
+      ? `Âm thanh được gửi OpenRouter và nhà cung cấp model để nhận dạng; văn bản gửi ${legacyProvider} để dịch và Google để đọc.`
+      : health.provider === 'Cloudflare'
       ? 'Âm thanh và văn bản được gửi đến Cloudflare để nhận dạng và dịch; bản dịch được gửi Google để đọc.'
       : `Âm thanh được gửi OpenAI để nhận dạng; văn bản gửi ${legacyProvider} để dịch và Google để đọc.`
     : 'Âm thanh được gửi đến OpenAI để nhận dạng và dịch.';

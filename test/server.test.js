@@ -66,7 +66,7 @@ test('unconfigured health and session fail clearly', async t => {
 test('hybrid HTTP reports exhausted STT credits without exposing provider bodies or invoking translation', async t => {
   const calls=[];
   const {base}=await server(t,{
-    env:{TRANSLATION_ENGINE:'hybrid',TRANSLATION_PROVIDER:'openrouter',OPENROUTER_API_KEY:'synthetic-router-secret',GOOGLE_TTS_API_KEY:'synthetic-google-secret'},
+    env:{TRANSLATION_ENGINE:'hybrid',TRANSLATION_PROVIDER:'openrouter',STT_PROVIDER:'openai',OPENROUTER_API_KEY:'synthetic-router-secret',GOOGLE_TTS_API_KEY:'synthetic-google-secret'},
     keyLoader:async()=> 'synthetic-openai-secret',
     fetchImpl:async url=>{
       calls.push(url);

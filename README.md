@@ -4,12 +4,39 @@
 
 Chọn `TRANSLATION_PROVIDER=openrouter` để dùng OpenRouter thay 9Router.
 Model: `OPENROUTER_TRANSLATE_MODEL=deepseek/deepseek-v3.2`.
+Nhận dạng giọng nói cũng dùng OpenRouter: `STT_PROVIDER=openrouter`,
+`OPENROUTER_STT_MODEL=openai/whisper-large-v3-turbo`.
 Local đọc `OPENROUTER_API_KEY_FILE`, production dùng `OPENROUTER_API_KEY`.
 Endpoint cố định `https://openrouter.ai/api/v1`; không dùng key 9Router dự phòng.
 DeepSeek chuẩn hóa nhẹ + dịch một lần, JSON output, `reasoning.enabled=false`.
-OpenAI nhận dạng, Google WaveNet đọc và cơ chế thử lại 429 không thay đổi.
-Văn bản được xử lý bởi OpenRouter và nhà cung cấp DeepSeek phía sau nó.
-Các mô tả 9Router/Gemini phía dưới là cấu hình cũ; chỉ dùng khi chọn provider=9router.
+Nhận dạng gọi `https://openrouter.ai/api/v1/audio/transcriptions` bằng JSON
+chứa WAV base64. Dùng cùng khóa OpenRouter cho nhận dạng và dịch, không đọc
+khóa OpenAI và không gọi trực tiếp `api.openai.com` trong cấu hình này.
+Âm thanh và văn bản được xử lý bởi OpenRouter và nhà cung cấp model phía sau.
+Google WaveNet tiếp tục đọc bản dịch bằng `GOOGLE_TTS_API_KEY` riêng.
+Các mô tả OpenAI STT/9Router/Gemini phía dưới là luồng cũ. Muốn dùng OpenAI
+STT trực tiếp phải chọn `STT_PROVIDER=openai`; 9Router cần `TRANSLATION_PROVIDER=9router`.
+
+### Cấu hình Railway cho OpenRouter
+
+Đặt các biến sau trong service đang chạy rồi triển khai lại mã mới:
+
+```dotenv
+TRANSLATION_ENGINE=hybrid
+TRANSLATION_PROVIDER=openrouter
+STT_PROVIDER=openrouter
+OPENROUTER_STT_MODEL=openai/whisper-large-v3-turbo
+OPENROUTER_TRANSLATE_MODEL=deepseek/deepseek-v3.2
+```
+
+Đặt khóa đang hoạt động vào `OPENROUTER_API_KEY` trên Railway; không dùng
+đường dẫn file từ máy cá nhân trên hosting. Giữ `GOOGLE_TTS_API_KEY`,
+`APP_ACCESS_PASSWORD`, `PUBLIC_ORIGIN` và `NODE_ENV=production` hiện có.
+`/api/health` hiển thị `provider`, `sttProvider` và `sttModel`, không hiển thị khóa.
+OpenRouter trả 401 khi khóa không hợp lệ, 402 khi thiếu số dư; ứng dụng hiển thị
+thông báo an toàn và dừng trước bước dịch/đọc. Không tự quay về khóa OpenAI.
+
+Tài liệu: [OpenRouter Speech-to-Text](https://openrouter.ai/docs/guides/overview/multimodal/stt).
 
 ## Luồng Gemini Flash + Google WaveNet (hybrid)
 
