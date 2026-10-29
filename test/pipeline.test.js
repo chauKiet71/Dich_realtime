@@ -102,6 +102,49 @@ test('provider errors are sanitized and do not fall back to another provider', a
   const { pipeline } = fixture('vi','zh', { fetchImpl: async () => new Response('SECRET', {status:401}) });
   await assert.rejects(pipeline.translate({ pcm, pair:'vi-zh' }), error => !error.message.includes('SECRET'));
 });
+
+test('STT failures distinguish credits, spend caps, authentication, permissions and temporary limits safely', async () => {
+  const cases = [
+    [429, { code:'credit_balance_exhausted', type:'insufficient_quota' }, /hết số dư API/],
+    [429, { code:'insufficient_quota' }, /hạn mức.*chi tiêu/],
+    [429, { type:'insufficient_quota' }, /hạn mức.*chi tiêu/],
+    [429, { code:'organization_spend_limit_exceeded', type:'insufficient_quota' }, /giới hạn chi tiêu/],
+    [429, { code:'project_spend_limit_exceeded' }, /giới hạn chi tiêu/],
+    [429, { code:'organization_usage_limit_exceeded' }, /giới hạn sử dụng/],
+    [429, { code:'rate_limit_exceeded' }, /giới hạn tốc độ/],
+    [401, { code:'invalid_api_key' }, /khóa API nhận dạng/],
+    [403, {}, /quyền.*model nhận dạng/],
+    [404, { code:'model_not_found' }, /quyền.*model nhận dạng/],
+  ];
+  for (const [status, error, expected] of cases) {
+    const calls=[];
+    const { pipeline }=fixture('vi','zh',{fetchImpl:async url=>{
+      calls.push(url);
+      return new Response(JSON.stringify({error:{...error,message:'SECRET provider detail'}}),{status});
+    }});
+    await assert.rejects(pipeline.translate({pcm,pair:'vi-zh'}), error=>{
+      assert.equal(error.status,503);
+      assert.match(error.message,/OpenAI/);
+      assert.match(error.message,expected);
+      assert.doesNotMatch(error.message,/SECRET/);
+      return true;
+    });
+    assert.equal(calls.length,1,'no translation, TTS or repeated paid STT on rejection');
+    assert.equal(pipeline.active,0);
+  }
+});
+
+test('STT error parsing is bounded and malformed provider errors remain private', async () => {
+  for (const body of ['SECRET invalid JSON',JSON.stringify({error:{message:'SECRET'+'x'.repeat(70000)}})]) {
+    const {pipeline}=fixture('vi','zh',{fetchImpl:async()=>new Response(body,{status:401})});
+    await assert.rejects(pipeline.translate({pcm,pair:'vi-zh'}), error=>{
+      assert.equal(error.status,503);
+      assert.match(error.message,/khóa API nhận dạng/);
+      assert.doesNotMatch(error.message,/SECRET|xxxx/);
+      return true;
+    });
+  }
+});
 test('aborted requests never call providers', async () => {
   const { pipeline, calls } = fixture();
   await assert.rejects(pipeline.translate({ pcm, pair:'vi-zh', signal:AbortSignal.abort() }));
