@@ -62,6 +62,28 @@ test('unconfigured health and session fail clearly', async t => {
   assert.equal((await (await fetch(`${base}/api/health`)).json()).configured, false);
   assert.equal((await post()).status, 503);
 });
+
+test('hybrid HTTP reports exhausted STT credits without exposing provider bodies or invoking translation', async t => {
+  const calls=[];
+  const {base}=await server(t,{
+    env:{TRANSLATION_ENGINE:'hybrid',TRANSLATION_PROVIDER:'openrouter',OPENROUTER_API_KEY:'synthetic-router-secret',GOOGLE_TTS_API_KEY:'synthetic-google-secret'},
+    keyLoader:async()=> 'synthetic-openai-secret',
+    fetchImpl:async url=>{
+      calls.push(url);
+      return new Response(JSON.stringify({error:{code:'credit_balance_exhausted',type:'insufficient_quota',message:'SECRET provider response'}}),{status:429});
+    },
+  });
+  const response=await fetch(base+'/api/translate-audio',{
+    method:'POST',body:Buffer.alloc(9600),
+    headers:{Origin:base,'Content-Type':'application/octet-stream','X-Translation-Client':'1','X-Language-Pair':'vi-zh'},
+  });
+  assert.equal(response.status,503);
+  const body=await response.json();
+  assert.match(body.error,/OpenAI.*hết số dư API/);
+  assert.deepEqual(Object.keys(body),['error']);
+  assert.doesNotMatch(JSON.stringify(body),/SECRET|synthetic|insufficient_quota/);
+  assert.deepEqual(calls,['https://api.openai.com/v1/audio/transcriptions']);
+});
 test('reject cross-origin, incorrect content, invalid and oversized SDP before upstream', async t => {
   const { post } = await server(t, { keyLoader: async () => 'test', fetchImpl: () => { throw new Error('must not call'); } });
   assert.equal((await post(undefined, { Origin: 'https://evil.example' })).status, 403);
